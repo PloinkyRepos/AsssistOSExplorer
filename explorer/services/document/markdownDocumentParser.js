@@ -556,10 +556,32 @@ const parseMarkdownDocument = (markdown) => {
     };
 };
 
+const stripLeadingBlankLines = (value = '') => {
+    if (!value) {
+        return '';
+    }
+    return value.replace(/^(?:[^\S\n]*\n)+/g, '');
+};
+
+const ensureParagraphTrailingBlankLine = (value = '') => {
+    const normalized = value ?? '';
+    if (!normalized) {
+        return '\n\n';
+    }
+    const trimmedForCheck = normalized.replace(/[^\S\n]+$/g, '');
+    if (/\n{2,}$/.test(trimmedForCheck)) {
+        return normalized;
+    }
+    if (/\n$/.test(trimmedForCheck)) {
+        return `${normalized}\n`;
+    }
+    return `${normalized}\n\n`;
+};
+
 const composeParagraph = (paragraph) => {
-    const leading = decodeHtmlEntities(paragraph.leading ?? '');
+    const leading = stripLeadingBlankLines(decodeHtmlEntities(paragraph.leading ?? ''));
     const text = decodeHtmlEntities(paragraph.text ?? '');
-    const trailing = decodeHtmlEntities(paragraph.trailing ?? '');
+    const trailing = ensureParagraphTrailingBlankLine(decodeHtmlEntities(paragraph.trailing ?? ''));
     const content = `${leading}${text}${trailing}`;
     return content.endsWith('\n') ? content : `${content}\n`;
 };
