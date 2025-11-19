@@ -19,9 +19,9 @@ export function renderPluginDefaultOptions(pluginElement){
                         <path d="M11.9999 17V21M6.9999 12.6667V6C6.9999 4.89543 7.89533 4 8.9999 4H14.9999C16.1045 4 16.9999 4.89543 16.9999 6V12.6667L18.9135 15.4308C19.3727 16.094 18.898 17 18.0913 17H5.90847C5.1018 17 4.62711 16.094 5.08627 15.4308L6.9999 12.6667Z" stroke="#646464" stroke-width="2" stroke-linecap="round"></path>
                     </g>
                 </svg>
-                <img class="close-plugin pointer" data-local-action="closePlugin" src="./assets/icons/x-mark.svg" alt="close">
+                <img class="close-plugin pointer" data-local-action="closePlugin ${pluginElement.getAttribute("data-type")}" src="./assets/icons/x-mark.svg" alt="close">
             </div>`
-    pluginElement.insertAdjacentHTML("afterbegin", defaultOptions);
+    pluginElement.querySelector(".default-options").insertAdjacentHTML("afterbegin", defaultOptions);
 }
 export function pinPlugin(pin, pluginElement){
     let path = pin.querySelector('path');

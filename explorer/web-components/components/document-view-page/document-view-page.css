@@ -67,9 +67,7 @@ document-view-page {
 }
 
 .options-container {
-    top: 77px;
-    right: 10px;
-    position: absolute;
+    position: relative;
     display: flex;
     align-items: center;
     justify-content: center;

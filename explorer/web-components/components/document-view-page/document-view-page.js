@@ -769,9 +769,9 @@ export class DocumentViewPage {
         await this.updateLastOpenedPlugin(pluginName);
     }
 
-    async closePlugin(targetElement, focusoutClose) {
+    async closePlugin(targetElement, type, focusoutClose) {
         delete this.currentPlugin;
-        let pluginContainer = this.element.querySelector(`.infoText-plugin-container`);
+        let pluginContainer = this.element.querySelector(`.${type}-plugin-container`);
         pluginContainer.classList.remove("plugin-open");
         let pluginElement = pluginContainer.firstElementChild;
         if (!pluginElement) {

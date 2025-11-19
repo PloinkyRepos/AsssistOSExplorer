@@ -6,13 +6,33 @@ import {
 } from './markdownDocumentParser.js';
 import { generateId } from './idUtils.js';
 
+const toCommandString = (value) => {
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.join('\n');
+    }
+    if (value === undefined || value === null) {
+        return '';
+    }
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch (_) {
+            return '';
+        }
+    }
+    return String(value);
+};
+
 const createDocumentMetadataDefaults = (overrides = {}) => {
     const now = new Date().toISOString();
     return {
         id: overrides.id ?? generateId('doc'),
         title: overrides.title ?? 'Untitled Document',
         infoText: overrides.infoText ?? '',
-        commands: overrides.commands ?? [],
+        commands: toCommandString(overrides.commands),
         comments: overrides.comments ?? { messages: [] },
         variables: overrides.variables ?? [],
         pluginState: overrides.pluginState ?? {},
@@ -29,7 +49,7 @@ const createDocumentMetadataDefaults = (overrides = {}) => {
 const createChapterMetadataDefaults = (overrides = {}) => ({
     id: overrides.id ?? generateId('chapter'),
     title: overrides.title ?? 'New Chapter',
-    commands: overrides.commands ?? [],
+    commands: toCommandString(overrides.commands),
     comments: overrides.comments ?? { messages: [] },
     pluginState: overrides.pluginState ?? {},
     references: overrides.references ?? [],
@@ -43,7 +63,7 @@ const createChapterMetadataDefaults = (overrides = {}) => ({
 const createParagraphMetadataDefaults = (overrides = {}) => ({
     id: overrides.id ?? generateId('paragraph'),
     type: overrides.type ?? 'markdown',
-    commands: overrides.commands ?? [],
+    commands: toCommandString(overrides.commands),
     comments: overrides.comments ?? { messages: [] },
     pluginState: overrides.pluginState ?? {},
     references: overrides.references ?? [],

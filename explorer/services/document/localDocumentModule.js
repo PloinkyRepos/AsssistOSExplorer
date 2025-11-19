@@ -65,6 +65,162 @@ const decodeString = (value, fallback = '') => {
     return typeof value === 'string' ? decodeHtmlEntities(value) : value;
 };
 
+const normalizeCommandString = (value, fallback = '') => {
+    if (typeof value === 'string') {
+        return value;
+    }
+    if (Array.isArray(value)) {
+        return value.join('\n');
+    }
+    if (value === undefined || value === null) {
+        return fallback ?? '';
+    }
+    if (typeof value === 'object') {
+        try {
+            return JSON.stringify(value);
+        } catch (_) {
+            return fallback ?? '';
+        }
+    }
+    return String(value);
+};
+
+const scriptCommandNames = new Set(['macro', 'jsdef', 'form', 'prompt']);
+
+const encodeSOPCode = (str) => {
+    if (typeof str !== 'string') {
+        return '';
+    }
+    return str.replace(/[%'\n"\[\]$@~]/g, (char) => {
+        const code = char.charCodeAt(0).toString(16).toUpperCase();
+        return `%${code.length < 2 ? `0${code}` : code}`;
+    });
+};
+
+const decodeSOPCode = (encodedStr) => {
+    if (typeof encodedStr !== 'string') {
+        return '';
+    }
+    return encodedStr.replace(/%([0-9A-Fa-f]{2})/g, (_match, hexDigits) => {
+        const charCode = parseInt(hexDigits, 16);
+        return String.fromCharCode(charCode);
+    });
+};
+
+const extractMacroOrJSDefOnASingleLine = (input = '') => {
+    if (typeof input !== 'string') {
+        return '';
+    }
+    const lines = input.split('\n');
+    const outputLines = [];
+    let currentIndex = 0;
+
+    const parseScriptBlock = (startIndex) => {
+        if (startIndex >= lines.length) {
+            return null;
+        }
+        const startLine = lines[startIndex].trim();
+        const match = startLine.match(/^@(\S+)\s+(macro|jsdef|form|prompt)(?:\s+(.*))?$/i);
+        if (!match) {
+            return null;
+        }
+        const scriptName = match[1];
+        const commandName = match[2].toLowerCase();
+        const argsString = match[3] || '';
+        const args = argsString.split(/\s+/).filter(Boolean);
+        const bodyLines = [];
+        let cursor = startIndex + 1;
+        while (cursor < lines.length) {
+            const currentLine = lines[cursor];
+            const trimmed = currentLine.trim();
+            if (trimmed.toLowerCase() === 'end') {
+                const encodedArgs = args.join(',');
+                const encodedBody = encodeSOPCode(bodyLines.join('\n'));
+                return {
+                    outputLine: `@${scriptName} ${commandName} '${encodedArgs}' '${encodedBody}'`,
+                    nextIndex: cursor + 1
+                };
+            }
+            bodyLines.push(currentLine.trim());
+            cursor += 1;
+        }
+        console.warn(`macro variable '${scriptName}' starting on line ${startIndex + 1} was not closed with 'end'.`);
+        return null;
+    };
+
+    while (currentIndex < lines.length) {
+        const block = parseScriptBlock(currentIndex);
+        if (block) {
+            outputLines.push(block.outputLine);
+            currentIndex = block.nextIndex;
+        } else {
+            outputLines.push(lines[currentIndex].trim());
+            currentIndex += 1;
+        }
+    }
+    return outputLines.join('\n');
+};
+
+const parseCommandsForUI = (commandsBlock = '', chapterId, paragraphId) => {
+    if (typeof commandsBlock !== 'string' || !commandsBlock.trim()) {
+        return [];
+    }
+    const normalized = extractMacroOrJSDefOnASingleLine(commandsBlock);
+    const splitCommands = normalized.split('\n');
+    const commands = [];
+    for (const rawLine of splitCommands) {
+        const line = rawLine.trim();
+        if (!line || line.startsWith('#') || line.startsWith('//')) {
+            continue;
+        }
+        const parts = line.split(' ');
+        if (!parts[0] || !parts[0].startsWith('@')) {
+            continue;
+        }
+        const varToken = parts.shift();
+        const varName = varToken.slice(1);
+        if (!varName) {
+            continue;
+        }
+        let commandToken = parts.shift() || '';
+        const parsedCommand = {
+            varName,
+            command: '',
+            expression: ''
+        };
+        if (commandToken.startsWith('?')) {
+            parsedCommand.conditional = true;
+            commandToken = commandToken.slice(1);
+        }
+        parsedCommand.command = commandToken;
+        if (commandToken === 'new') {
+            parsedCommand.customType = parts.shift() || '';
+        }
+        if (scriptCommandNames.has(commandToken)) {
+            const paramsToken = parts.shift() || '';
+            const expressionToken = parts.join(' ').trim();
+            const paramsSection = paramsToken.startsWith("'") && paramsToken.endsWith("'")
+                ? paramsToken.slice(1, -1)
+                : paramsToken;
+            parsedCommand.params = paramsSection ? paramsSection.split(',') : [];
+            const encodedExpression = expressionToken.startsWith("'") && expressionToken.endsWith("'")
+                ? expressionToken.slice(1, -1)
+                : expressionToken;
+            parsedCommand.expression = decodeSOPCode(encodedExpression);
+        } else {
+            parsedCommand.expression = parts.join(' ').trim();
+        }
+        if (chapterId) {
+            parsedCommand.chapterId = chapterId;
+        }
+        if (paragraphId) {
+            parsedCommand.paragraphId = paragraphId;
+        }
+        commands.push(parsedCommand);
+    }
+    return commands;
+};
+
 const decodeBase64 = (value) => {
     if (!value) return '';
     if (typeof window !== 'undefined' && typeof window.atob === 'function') {
@@ -114,6 +270,9 @@ class Chapter {
 const hydrateParagraphModel = (paragraph, chapterId) => {
     const metadata = createParagraphMetadataDefaults(paragraph.metadata ?? {});
     const comments = createCommentDefaults(metadata.comments);
+    const commands = normalizeCommandString(paragraph.commands ?? metadata.commands ?? '');
+    paragraph.commands = commands;
+    metadata.commands = commands;
 
     return {
         id: metadata.id,
@@ -123,7 +282,7 @@ const hydrateParagraphModel = (paragraph, chapterId) => {
         leading: paragraph.leading ?? '',
         trailing: paragraph.trailing ?? '\n',
         type: metadata.type ?? 'markdown',
-        commands: metadata.commands ?? [],
+        commands,
         comments,
         pluginState: metadata.pluginState ?? {},
         references: metadata.references ?? [],
@@ -139,6 +298,9 @@ const hydrateChapterModel = (chapter, index) => {
     const comments = createCommentDefaults(metadata.comments);
     const headingLevel = chapter.heading?.level ?? 2;
     const headingText = chapter.heading?.text ?? metadata.title ?? `Chapter ${index + 1}`;
+    const commands = normalizeCommandString(chapter.commands ?? metadata.commands ?? '');
+    chapter.commands = commands;
+    metadata.commands = commands;
     let paragraphs = (chapter.paragraphs ?? []).map((paragraph) => hydrateParagraphModel(paragraph, metadata.id));
 
     if (paragraphs.length === 0) {
@@ -158,7 +320,7 @@ const hydrateChapterModel = (chapter, index) => {
         headingLevel,
         headingText,
         leading: chapter.leading ?? '',
-        commands: metadata.commands ?? [],
+        commands,
         comments,
         pluginState: metadata.pluginState ?? {},
         references: metadata.references ?? [],
@@ -182,6 +344,9 @@ const hydrateDocumentModel = (document, path) => {
     }
 
     let chapters = (document.chapters ?? []).map((chapter, index) => hydrateChapterModel(chapter, index));
+    const commands = normalizeCommandString(document.commands ?? metadata.commands ?? '');
+    document.commands = commands;
+    metadata.commands = commands;
 
     if (chapters.length === 0) {
         const defaultChapterMetadata = createChapterMetadataDefaults({ title: 'Chapter 1' });
@@ -203,7 +368,7 @@ const hydrateDocumentModel = (document, path) => {
         metadata,
         title: metadata.title ?? 'Untitled Document',
         infoText: metadata.infoText ?? '',
-        commands: metadata.commands ?? [],
+        commands,
         comments,
         pluginState: metadata.pluginState ?? {},
         references: metadata.references ?? [],
@@ -224,11 +389,13 @@ const syncParagraphMetadata = (paragraph = {}) => {
         return;
     }
     paragraph.comments = createCommentDefaults(paragraph.comments);
+    const commands = normalizeCommandString(paragraph.commands ?? paragraph.metadata?.commands ?? '');
+    paragraph.commands = commands;
     const overrides = {
         ...(paragraph.metadata ?? {}),
         id: paragraph.id,
         type: paragraph.type ?? paragraph.metadata?.type ?? 'markdown',
-        commands: paragraph.commands ?? paragraph.metadata?.commands ?? [],
+        commands,
         comments: paragraph.comments,
         pluginState: paragraph.pluginState ?? paragraph.metadata?.pluginState ?? {},
         references: paragraph.references ?? paragraph.metadata?.references ?? [],
@@ -246,11 +413,13 @@ const syncChapterMetadata = (chapter = {}) => {
         return;
     }
     chapter.comments = createCommentDefaults(chapter.comments);
+    const commands = normalizeCommandString(chapter.commands ?? chapter.metadata?.commands ?? '');
+    chapter.commands = commands;
     const overrides = {
         ...(chapter.metadata ?? {}),
         id: chapter.id,
         title: chapter.title,
-        commands: chapter.commands ?? chapter.metadata?.commands ?? [],
+        commands,
         comments: chapter.comments,
         pluginState: chapter.pluginState ?? chapter.metadata?.pluginState ?? {},
         references: chapter.references ?? chapter.metadata?.references ?? [],
@@ -271,12 +440,14 @@ const syncDocumentMetadata = (document = {}) => {
     }
     document.comments = createCommentDefaults(document.comments);
     const metadataId = document.metadata?.id ?? document.documentId ?? document.docId ?? generateId('doc');
+    const commands = normalizeCommandString(document.commands ?? document.metadata?.commands ?? '');
+    document.commands = commands;
     const overrides = {
         ...(document.metadata ?? {}),
         id: metadataId,
         title: document.title,
         infoText: document.infoText ?? document.metadata?.infoText ?? '',
-        commands: document.commands ?? document.metadata?.commands ?? [],
+        commands,
         comments: document.comments,
         pluginState: document.pluginState ?? document.metadata?.pluginState ?? {},
         references: document.references ?? document.metadata?.references ?? [],
@@ -509,7 +680,11 @@ const documentModule = {
             document.docId = docId;
         }
         document.infoText = infoText ?? '';
-        document.commands = Array.isArray(commands) ? commands : (document.commands ?? []);
+        const currentCommands = normalizeCommandString(document.commands ?? '', '');
+        document.commands = currentCommands;
+        if (commands !== undefined) {
+            document.commands = normalizeCommandString(commands, currentCommands);
+        }
         document.comments = createCommentDefaults(comments ?? document.comments);
         document.metadata = {
             ...document.metadata,
@@ -538,7 +713,7 @@ const documentModule = {
         const document = await getDocumentModel(documentIdOrPath);
         const chapterMetadata = createChapterMetadataDefaults({
             title: title ?? 'New Chapter',
-            commands: commands ?? [],
+            commands: normalizeCommandString(commands ?? '', ''),
             comments: comments ?? { messages: [] }
         });
         const chapter = hydrateChapterModel(createEmptyChapter({
@@ -641,10 +816,12 @@ const documentModule = {
             chapter.headingText = title;
             chapter.metadata.title = title;
         }
-        if (Array.isArray(commands)) {
-            chapter.commands = commands;
-            chapter.metadata.commands = commands;
+        const currentChapterCommands = normalizeCommandString(chapter.commands ?? '', '');
+        chapter.commands = currentChapterCommands;
+        if (commands !== undefined) {
+            chapter.commands = normalizeCommandString(commands, currentChapterCommands);
         }
+        chapter.metadata.commands = chapter.commands;
         if (comments) {
             chapter.comments = createCommentDefaults(comments);
             chapter.metadata.comments = chapter.comments;
@@ -770,10 +947,12 @@ const documentModule = {
         if (typeof text === 'string') {
             paragraphReference.text = text;
         }
-        if (Array.isArray(commands)) {
-            paragraphReference.commands = commands;
-            paragraphReference.metadata.commands = commands;
+        const currentParagraphCommands = normalizeCommandString(paragraphReference.commands ?? '', '');
+        paragraphReference.commands = currentParagraphCommands;
+        if (commands !== undefined) {
+            paragraphReference.commands = normalizeCommandString(commands, currentParagraphCommands);
         }
+        paragraphReference.metadata.commands = paragraphReference.commands;
         if (comments) {
             paragraphReference.comments = createCommentDefaults(comments);
             paragraphReference.metadata.comments = paragraphReference.comments;
@@ -786,19 +965,24 @@ const documentModule = {
     },
     async getDocCommandsParsed(_spaceId, documentIdOrPath) {
         const document = await getDocumentModel(documentIdOrPath);
-        const variables = [];
+        const commands = [];
+        const appendCommands = (commandBlock, chapterId, paragraphId) => {
+            if (typeof commandBlock !== 'string' || !commandBlock.trim()) {
+                return;
+            }
+            const parsed = parseCommandsForUI(commandBlock, chapterId, paragraphId);
+            if (parsed.length) {
+                commands.push(...parsed);
+            }
+        };
+        appendCommands(document.commands, undefined, undefined);
         document.chapters.forEach((chapter) => {
+            appendCommands(chapter.commands, chapter.id, undefined);
             chapter.paragraphs.forEach((paragraph) => {
-                (paragraph.variables ?? []).forEach((variable) => {
-                    variables.push({
-                        ...variable,
-                        paragraphId: paragraph.id,
-                        chapterId: chapter.id
-                    });
-                });
+                appendCommands(paragraph.commands, chapter.id, paragraph.id);
             });
         });
-        return variables;
+        return commands;
     },
     async getDocumentSnapshots(_spaceId, documentIdOrPath) {
         const path = documentStore.resolvePath(documentIdOrPath);
@@ -867,7 +1051,8 @@ const documentModule = {
     },
     async updateParagraphCommands(_spaceId, chapterId, paragraphId, commands) {
         const paragraph = await this.getParagraph(null, paragraphId);
-        paragraph.commands = Array.isArray(commands) ? commands : [];
+        const currentCommands = normalizeCommandString(paragraph.commands ?? '', '');
+        paragraph.commands = normalizeCommandString(commands, currentCommands);
         paragraph.metadata.commands = paragraph.commands;
         for (const document of documentStore.documents.values()) {
             if (document.chapters.some((chapter) => chapter.id === chapterId)) {

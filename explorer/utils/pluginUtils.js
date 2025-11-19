@@ -278,7 +278,7 @@ async function openPlugin(componentName, type, context, presenter, autoPin = fal
         let pluginContainer = presenter.element.querySelector(`.${type}-plugin-container`);
         let contextString = encodeURIComponent(JSON.stringify(context));
         pluginContainer.classList.add("plugin-open");
-        pluginContainer.innerHTML = `<${componentName} data-pin="${autoPin}" class="assistos-plugin" data-context="${contextString}" data-presenter="${componentName}"></${componentName}>`;
+        pluginContainer.innerHTML = `<${componentName} data-pin="${autoPin}" class="assistos-plugin" data-type="${type}" data-context="${contextString}" data-presenter="${componentName}"></${componentName}>`;
     } else {
         await assistOS.UI.showModal(componentName, {
             context: encodeURIComponent(JSON.stringify(context)),
