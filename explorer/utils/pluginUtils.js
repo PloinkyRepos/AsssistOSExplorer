@@ -323,10 +323,10 @@ async function renderPluginIcons(containerElement, type) {
         if (!plugin) continue;
         if (plugin.iconPresenter && plugin.iconComponent) {
             const iconContainer = document.createElement("div");
-            attachPluginTooltip(iconContainer, plugin, type, plugin.autoPin);
             const iconContext = {icon: plugin.icon, plugin: plugin.component, type};
             const contextString = encodeURIComponent(JSON.stringify(iconContext));
             iconContainer.innerHTML = `<${plugin.iconComponent} data-context="${contextString}" data-presenter="${plugin.iconComponent}"></${plugin.iconComponent}>`;
+            attachPluginTooltip(iconContainer, plugin, type, plugin.autoPin);
             containerElement.appendChild(iconContainer);
         } else {
             const iconSrc = await getPluginIcon(plugin);
@@ -340,10 +340,13 @@ async function renderPluginIcons(containerElement, type) {
 function attachPluginTooltip(containerElement, plugin, type, autoPin = false) {
     containerElement.classList.add("icon-container", plugin.component, "pointer");
     containerElement.setAttribute("data-local-action", `openPlugin ${type} ${plugin.component} ${autoPin}`);
-    let tooltip = document.createElement("div");
-    tooltip.classList.add("plugin-name");
-    tooltip.innerHTML = plugin.tooltip;
-    containerElement.appendChild(tooltip);
+    let tooltip = containerElement.querySelector(".plugin-name");
+    if (!tooltip) {
+        tooltip = document.createElement("div");
+        tooltip.classList.add("plugin-name");
+        tooltip.innerHTML = plugin.tooltip;
+        containerElement.appendChild(tooltip);
+    }
     containerElement.addEventListener("mouseover", async ()=>{
         containerElement.querySelector(".plugin-name").style.display = "block";
     });
