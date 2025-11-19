@@ -5,7 +5,7 @@
   "cli": "/bin/bash",
   "agent": "node /code/filesystem-http-server.mjs",
   "about": "AssistOS Explorer agent running the official MCP filesystem server over HTTP.",
-  "enable": ["soplang"],
+  "enable": ["soplang","multimedia"],
   "env": ["ASSISTOS_FS_ROOT"],
   "repos": {}
 }

@@ -170,6 +170,51 @@
             "name": "edit-variable-tab",
             "type": "modals",
             "presenterClassName": "EditVariableTab"
+        },
+        {
+            "name": "document-video-preview",
+            "type": "components",
+            "presenterClassName": "DocumentVideoPreview"
+        },
+        {
+            "name": "paragraph-video-preview",
+            "type": "components",
+            "presenterClassName": "ParagraphVideoPreview"
+        },
+        {
+            "name": "audio-creator",
+            "type": "components",
+            "presenterClassName": "AudioCreator"
+        },
+        {
+            "name": "video-creator",
+            "type": "components",
+            "presenterClassName": "VideoCreator"
+        },
+        {
+            "name": "image-creator",
+            "type": "components",
+            "presenterClassName": "ImageCreator"
+        },
+        {
+            "name": "chapter-audio",
+            "type": "modals",
+            "presenterClassName": "ChapterAudio"
+        },
+        {
+            "name": "simple-state-icon",
+            "type": "components",
+            "presenterClassName": "SimpleStateIcon"
+        },
+        {
+            "name": "effect-item",
+            "type": "components",
+            "presenterClassName": "EffectItem"
+        },
+        {
+            "name": "edit-effect-modal",
+            "type": "modals",
+            "presenterClassName": "EditEffectModal"
         }
     ],
     "services": []

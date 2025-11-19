@@ -1,0 +1,26 @@
+image-creator{
+    display: block;
+    width: 100%;
+    background-color: var(--white);
+    border-radius: 5px;
+    padding: 20px;
+
+}
+.actions-section{
+    display: flex;
+    margin-bottom: 10px;
+}
+.delete-image{
+    margin-left: 10px;
+}
+
+#diagram{
+    margin-left: 10px;
+}
+.view-section{
+    display: flex;
+    justify-content: center;
+}
+.paragraph-image{
+    width: 80%;
+}

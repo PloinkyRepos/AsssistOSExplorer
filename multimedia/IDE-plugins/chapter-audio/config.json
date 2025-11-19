@@ -1,0 +1,10 @@
+{
+    "component": "chapter-audio",
+    "location": ["chapter"],
+    "tooltip": "Chapter Audio",
+    "icon": "/multimedia/IDE-plugins/assets/icons/chapter-audio.svg",
+    "presenter": "ChapterAudio",
+    "type": "modal",
+    "autoPin": false,
+    "dependencies": []
+}

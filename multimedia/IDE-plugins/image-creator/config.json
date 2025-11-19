@@ -1,0 +1,18 @@
+{
+    "component": "image-creator",
+    "location": ["paragraph"],
+    "tooltip": "Image Creator",
+    "icon": "/multimedia/IDE-plugins/assets/icons/image.svg",
+    "iconPresenter": "SimpleStateIcon",
+    "iconComponent": "simple-state-icon",
+    "presenter": "ImageCreator",
+    "type": "embedded",
+    "autoPin": false,
+    "dependencies": [
+        {
+            "component": "simple-state-icon",
+            "presenter": "SimpleStateIcon",
+            "path": "components/simple-state-icon/simple-state-icon"
+        }
+    ]
+}

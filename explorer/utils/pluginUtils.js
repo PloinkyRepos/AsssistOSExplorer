@@ -210,7 +210,7 @@ export async function registerRuntimeComponent(webSkel, componentDefinition) {
 
     const ensurePresenterRegistered = async () => {
         if (presenterClassName && presenterModule && presenterModule[presenterClassName]) {
-            resourceManager.registerPresenter(name, presenterModule[presenterClassName]);
+        resourceManager.registerPresenter(name, presenterModule[presenterClassName]);
         }
     };
 
@@ -321,11 +321,20 @@ async function renderPluginIcons(containerElement, type) {
     const plugins = Array.isArray(registry) ? registry : [];
     for (const plugin of plugins) {
         if (!plugin) continue;
-        const iconSrc = await getPluginIcon(plugin);
-        const containerDiv = document.createElement("div");
-        containerDiv.innerHTML = `<img class="pointer black-icon" loading="lazy" src="${iconSrc}" alt="icon">`;
-        attachPluginTooltip(containerDiv, plugin, type, plugin.autoPin);
-        containerElement.appendChild(containerDiv);
+        if (plugin.iconPresenter && plugin.iconComponent) {
+            const iconContainer = document.createElement("div");
+            attachPluginTooltip(iconContainer, plugin, type, plugin.autoPin);
+            const iconContext = {icon: plugin.icon, plugin: plugin.component, type};
+            const contextString = encodeURIComponent(JSON.stringify(iconContext));
+            iconContainer.innerHTML = `<${plugin.iconComponent} data-context="${contextString}" data-presenter="${plugin.iconComponent}"></${plugin.iconComponent}>`;
+            containerElement.appendChild(iconContainer);
+        } else {
+            const iconSrc = await getPluginIcon(plugin);
+            const containerDiv = document.createElement("div");
+            containerDiv.innerHTML = `<img class="pointer black-icon" loading="lazy" src="${iconSrc}" alt="icon">`;
+            attachPluginTooltip(containerDiv, plugin, type, plugin.autoPin);
+            containerElement.appendChild(containerDiv);
+        }
     }
 }
 function attachPluginTooltip(containerElement, plugin, type, autoPin = false) {

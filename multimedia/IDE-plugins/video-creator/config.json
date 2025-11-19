@@ -1,0 +1,18 @@
+{
+    "component": "video-creator",
+    "location": ["paragraph"],
+    "tooltip": "Video Creator",
+    "icon": "/multimedia/IDE-plugins/assets/icons/video.svg",
+    "iconPresenter": "SimpleStateIcon",
+    "iconComponent": "simple-state-icon",
+    "presenter": "VideoCreator",
+    "type": "embedded",
+    "autoPin": false,
+    "dependencies": [
+        {
+            "component": "simple-state-icon",
+            "presenter": "SimpleStateIcon",
+            "path": "components/simple-state-icon/simple-state-icon"
+        }
+    ]
+}

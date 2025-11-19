@@ -1,0 +1,10 @@
+{
+    "component": "document-video-preview",
+    "location": [],
+    "tooltip": "Video Preview",
+    "icon": "/multimedia/IDE-plugins/assets/icons/preview.svg",
+    "presenter": "DocumentVideoPreview",
+    "type": "embedded",
+    "autoPin": false,
+    "dependencies": []
+}

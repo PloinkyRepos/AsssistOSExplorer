@@ -1,0 +1,28 @@
+{
+    "component": "audio-creator",
+    "location": ["paragraph"],
+    "tooltip": "Audio Creator",
+    "icon": "/multimedia/IDE-plugins/assets/icons/audio.svg",
+    "iconPresenter": "SimpleStateIcon",
+    "iconComponent": "simple-state-icon",
+    "presenter": "AudioCreator",
+    "type": "embedded",
+    "autoPin": false,
+    "dependencies": [
+        {
+            "component": "simple-state-icon",
+            "presenter": "SimpleStateIcon",
+            "path": "components/simple-state-icon/simple-state-icon"
+        },
+        {
+            "component": "effect-item",
+            "presenter": "EffectItem",
+            "path": "components/effect-item/effect-item"
+        },
+        {
+            "component": "edit-effect-modal",
+            "presenter": "EditEffectModal",
+            "path": "components/edit-effect-modal/edit-effect-modal"
+        }
+    ]
+}
