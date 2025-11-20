@@ -229,9 +229,9 @@ export class ChapterItem {
         this.changeChapterDeleteAvailability();
         UIUtils.changeCommentIndicator(this.element, this.chapter.comments.messages);
         UIUtils.displayCurrentStatus(this.element, this.chapter.comments, "chapter");
-        if(this.chapter.comments.pluginLastOpened){
+/*        if(this.chapter.comments.pluginLastOpened){
             await this.openPlugin("", "chapter", this.chapter.comments.pluginLastOpened, true);
-        }
+        }*/
     }
 
     async updateStatus(status, type, pluginName, autoPin) {
@@ -247,10 +247,15 @@ export class ChapterItem {
             this.chapter.comments);
     }
     async updateLastOpenedPlugin(pluginName) {
-        if (this.chapter.comments.pluginLastOpened === pluginName) {
-            return; // No change in plugin
+        const normalized = pluginName || "";
+        if (this.chapter.comments.pluginLastOpened === normalized) {
+            return;
         }
-        this.chapter.comments.pluginLastOpened = pluginName;
+        if (normalized) {
+            this.chapter.comments.pluginLastOpened = normalized;
+        } else {
+            delete this.chapter.comments.pluginLastOpened;
+        }
         await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
             this.chapter.title,
             this.chapter.commands,
@@ -312,9 +317,9 @@ export class ChapterItem {
         this.switchChapterToolbar("on");
         let chapterHeader = this.element.querySelector(".chapter-header-container");
         chapterHeader.classList.add("highlighted-header");
-        if(this.currentPlugin){
+        /*if(this.currentPlugin){
           await this.openPlugin("", "chapter", this.currentPlugin);
-        }
+        }*/
     }
 
     async openPlugin(targetElement, type, pluginName, autoPin) {
@@ -331,20 +336,22 @@ export class ChapterItem {
         await this.updateLastOpenedPlugin(pluginName);
     }
     async closePlugin(targetElement, focusoutClose) {
-        delete this.currentPlugin;
         let pluginContainer = this.element.querySelector(`.chapter-plugin-container`);
-        pluginContainer.classList.remove("plugin-open");
-        let pluginElement = pluginContainer.firstElementChild;
-        if(!pluginElement){
-            return;
+        if (pluginContainer) {
+            pluginContainer.classList.remove("plugin-open");
         }
-        let pluginName = pluginElement.tagName.toLowerCase();
-        pluginElement.remove();
+        let pluginElement = pluginContainer ? pluginContainer.firstElementChild : null;
+        let pluginName = pluginElement ? pluginElement.tagName.toLowerCase() : this.currentPlugin || "";
+        if (pluginElement) {
+            pluginElement.remove();
+        }
+        delete this.currentPlugin;
         pluginUtils.removeHighlightPlugin("chapter", this);
         await this.updateLastOpenedPlugin("");
-        if(focusoutClose){
+        if (focusoutClose) {
             return pluginName;
         }
+        return pluginName;
     }
 
     async focusOutHandlerTitle(chapterTitle){

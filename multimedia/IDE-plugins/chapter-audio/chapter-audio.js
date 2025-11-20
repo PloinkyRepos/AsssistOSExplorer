@@ -4,10 +4,10 @@ export class ChapterAudio {
     constructor(element, invalidate) {
         this.element = element;
         this.invalidate = invalidate;
-        let chapterId = this.element.getAttribute("data-chapter-id");
+        this.chapterId = JSON.parse(decodeURIComponent(this.element.variables["data-context"])).chapterId
         let documentViewPage = document.querySelector("document-view-page");
         this._document = documentViewPage.webSkelPresenter._document;
-        this.chapter = this._document.chapters.find(chapter => chapter.id === chapterId);
+        this.chapter = this._document.chapters.find(chapter => chapter.id === this.chapterId);
         this.invalidate();
     }
     beforeRender(){
@@ -67,12 +67,15 @@ export class ChapterAudio {
                 };
                 this.chapter.backgroundSound = backgroundSound;
                 await documentModule.updateChapterBackgroundSound(assistOS.space.id, this._document.id, this.chapter.id, backgroundSound);
+                await this.saveAudioAttachmentVariable(audioId);
                 await this.invalidateCompiledVideo();
                 this.invalidate();
+                this.closeModal();
             });
             audioPlayer.src = URL.createObjectURL(file);
         };
         reader.readAsArrayBuffer(file);
+
     }
 
     insertAudio(_target) {
@@ -107,16 +110,51 @@ export class ChapterAudio {
     async deleteBackgroundSound() {
         delete this.chapter.backgroundSound;
         await documentModule.updateChapterBackgroundSound(assistOS.space.id, this._document.id, this.chapter.id, null);
+        await this.saveAudioAttachmentVariable("");
         await this.invalidateCompiledVideo();
         this.invalidate();
     }
-    closeModal(){
+    async closeModal(){
+        const chapterPresenter = this.getChapterPresenter();
+        if (chapterPresenter) {
+            await chapterPresenter.closePlugin("", false);
+        } else {
+            this.resetPluginButtonState();
+        }
         assistOS.UI.closeModal(this.element);
+    }
+    resetPluginButtonState() {
+        const pluginIcon = this.getPluginIconElement();
+        if (pluginIcon) {
+            pluginIcon.classList.remove("chapter-highlight-plugin");
+        }
     }
     async invalidateCompiledVideo(){
         if(this.chapter.commands.compileVideo){
             delete this.chapter.commands.compileVideo;
             await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
         }
+    }
+    async saveAudioAttachmentVariable(audioId) {
+        try {
+            let audioUrl = "";
+            if (audioId) {
+                audioUrl = await spaceModule.getAudioURL(audioId);
+            }
+            await documentModule.setChapterVarValue(assistOS.space.id, this._document.id, this.chapter.id, "audio-attachment", audioUrl);
+        } catch (error) {
+            console.error("Failed to persist chapter audio attachment variable", error);
+        }
+    }
+    getChapterPresenter() {
+        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
+        return chapterElement ? chapterElement.webSkelPresenter : null;
+    }
+    getPluginIconElement() {
+        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
+        if (!chapterElement) {
+            return null;
+        }
+        return chapterElement.querySelector(".icon-container.chapter-audio");
     }
 }

@@ -312,6 +312,10 @@ const hydrateChapterModel = (chapter, index) => {
         paragraphs = [defaultParagraph];
     }
 
+    const normalizedBackgroundSound = chapter.backgroundSound
+        ? { ...chapter.backgroundSound }
+        : null;
+
     return new Chapter({
         id: metadata.id,
         metadata,
@@ -328,7 +332,8 @@ const hydrateChapterModel = (chapter, index) => {
         snapshots: metadata.snapshots ?? [],
         tasks: metadata.tasks ?? [],
         variables: metadata.variables ?? [],
-        paragraphs
+        paragraphs,
+        backgroundSound: normalizedBackgroundSound
     });
 };
 
@@ -488,28 +493,36 @@ const serializeParagraph = (paragraph) => ({
     hasMetadata: true
 });
 
-const serializeChapter = (chapter) => ({
-    id: chapter.id,
-    metadata: decodeValueDeep({
-        ...chapter.metadata,
+const serializeChapter = (chapter) => {
+    const serialized = {
         id: chapter.id,
-        title: decodeString(chapter.title ?? chapter.metadata?.title ?? ''),
-        commands: chapter.commands,
-        comments: chapter.comments,
-        pluginState: chapter.pluginState,
-        references: chapter.references,
-        attachments: chapter.attachments,
-        snapshots: chapter.snapshots,
-        tasks: chapter.tasks,
-        variables: chapter.variables
-    }),
-    heading: {
-        level: chapter.headingLevel ?? chapter.metadata.headingLevel ?? 2,
-        text: decodeString(chapter.headingText ?? chapter.title)
-    },
-    leading: decodeString(chapter.leading ?? ''),
-    paragraphs: chapter.paragraphs.map(serializeParagraph)
-});
+        metadata: decodeValueDeep({
+            ...chapter.metadata,
+            id: chapter.id,
+            title: decodeString(chapter.title ?? chapter.metadata?.title ?? ''),
+            commands: chapter.commands,
+            comments: chapter.comments,
+            pluginState: chapter.pluginState,
+            references: chapter.references,
+            attachments: chapter.attachments,
+            snapshots: chapter.snapshots,
+            tasks: chapter.tasks,
+            variables: chapter.variables
+        }),
+        heading: {
+            level: chapter.headingLevel ?? chapter.metadata.headingLevel ?? 2,
+            text: decodeString(chapter.headingText ?? chapter.title)
+        },
+        leading: decodeString(chapter.leading ?? ''),
+        paragraphs: chapter.paragraphs.map(serializeParagraph)
+    };
+
+    if (chapter.backgroundSound) {
+        serialized.backgroundSound = decodeValueDeep(chapter.backgroundSound);
+    }
+
+    return serialized;
+};
 
 const serializeDocumentModel = (document) => ensureDocumentStructure({
     metadata: decodeValueDeep({
@@ -828,6 +841,39 @@ const documentModule = {
         }
         await persistDocument(documentPath ?? documentReference.path ?? documentIdOrPathOrChapterId);
         return chapter;
+    },
+    async updateChapterBackgroundSound(_spaceId, documentIdOrPath, chapterId, backgroundSound) {
+        const document = await getDocumentModel(documentIdOrPath);
+        const chapter = document.chapters.find((item) => item.id === chapterId);
+        if (!chapter) {
+            throw new Error(`Chapter ${chapterId} not found.`);
+        }
+        if (backgroundSound && typeof backgroundSound === 'object') {
+            chapter.backgroundSound = { ...backgroundSound };
+        } else {
+            delete chapter.backgroundSound;
+        }
+        await persistDocument(documentIdOrPath);
+        return chapter;
+    },
+    async setChapterVarValue(_spaceId, documentIdOrPath, chapterId, varName, value) {
+        const document = await getDocumentModel(documentIdOrPath);
+        const chapter = document.chapters.find((item) => item.id === chapterId);
+        if (!chapter) {
+            throw new Error(`Chapter ${chapterId} not found.`);
+        }
+        if (!Array.isArray(chapter.variables)) {
+            chapter.variables = [];
+        }
+        let variable = chapter.variables.find((item) => item.name === varName);
+        if (!variable) {
+            variable = { name: varName, value: null };
+            chapter.variables.push(variable);
+        }
+        variable.value = value;
+        chapter.metadata.variables = chapter.variables;
+        await persistDocument(documentIdOrPath);
+        return variable;
     },
     async addParagraph(_spaceId, chapterId, paragraphText = '', metadata = null, paragraphType = 'markdown', position = null) {
         let documentReference;

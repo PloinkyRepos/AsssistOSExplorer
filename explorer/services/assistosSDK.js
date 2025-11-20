@@ -2,7 +2,7 @@ import { createAgentClient } from '/MCPBrowserClient.js';
 import documentModule from './document/localDocumentModule.js';
 
 const DEFAULT_EMAIL = 'local@example.com';
-const DEFAULT_IMAGE = './assets/images/default-personality.png';
+const DEFAULT_AGENT_IMAGE = './assets/icons/person.svg';
 const DEFAULT_COMMANDS = [
     'assign',
     'new',
@@ -18,6 +18,9 @@ const DEFAULT_CUSTOM_TYPES = [
     'date',
     'list'
 ];
+const EXPLORER_AGENT_ID = 'explorer';
+const DOCUMENT_MEDIA_ROOT = 'document-multimedia';
+const AUDIO_FILE_EXTENSION = '.mp3';
 
 const createFontMap = () => ({
     tiny: '12px',
@@ -93,6 +96,56 @@ const customTrim = (value) => {
         return value;
     }
     return value.replace(/^[\u00A0\s]+|[\u00A0\s]+$/g, '').trim();
+};
+
+const generateRandomId = (prefix = 'id') => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
+
+const toBase64 = (uint8Array) => {
+    if (typeof Buffer !== 'undefined' && Buffer.from) {
+        return Buffer.from(uint8Array).toString('base64');
+    }
+    let binary = '';
+    const chunkSize = 0x8000;
+    for (let i = 0; i < uint8Array.length; i += chunkSize) {
+        const chunk = uint8Array.subarray(i, i + chunkSize);
+        binary += String.fromCharCode.apply(null, chunk);
+    }
+    if (typeof btoa === 'function') {
+        return btoa(binary);
+    }
+    throw new Error('Base64 encoding is not supported in this environment.');
+};
+
+const sanitizePathSegment = (value = '') => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+    return value
+        .replace(/^\.+/, '')
+        .replace(/[\\]/g, '_')
+        .replace(/\//g, '_')
+        .replace(/[<>:"|?*]/g, '_')
+        .trim() || 'document';
+};
+
+const resolveDocumentContext = (spaceState) => {
+    if (!spaceState) {
+        return null;
+    }
+    const metadataId = typeof spaceState.currentDocumentMetadataId === 'string'
+        ? spaceState.currentDocumentMetadataId.trim()
+        : '';
+    const docId = typeof spaceState.currentDocumentId === 'string'
+        ? spaceState.currentDocumentId.trim()
+        : '';
+    const raw = metadataId || docId;
+    if (!raw) {
+        return null;
+    }
+    return {
+        raw,
+        folder: sanitizePathSegment(raw)
+    };
 };
 
 const buildUIHelpers = () => {
@@ -262,7 +315,7 @@ const buildAgentModule = () => ({
         return {
             id: 'local-agent',
             name: 'Local Agent',
-            image: DEFAULT_IMAGE,
+            image: DEFAULT_AGENT_IMAGE,
             commands: DEFAULT_COMMANDS,
             customTypes: DEFAULT_CUSTOM_TYPES
         };
@@ -272,30 +325,73 @@ const buildAgentModule = () => ({
     }
 });
 
-const buildSpaceModule = (spaceState) => ({
-    async getSpaceStatus() {
-        return {
-            spaceGlobalId: spaceState.id,
-            status: 'active',
-            plugins: spaceState.plugins
-        };
-    },
-    async getCommands() {
-        return [...DEFAULT_COMMANDS];
-    },
-    async getCustomTypes() {
-        return [...DEFAULT_CUSTOM_TYPES];
-    },
-    async getImageURL(imageId) {
-        return imageId ? `/${imageId}` : '';
-    },
-    async getAudioURL(audioId) {
-        return audioId ? `/${audioId}` : '';
-    },
-    async putImage(_arrayBuffer) {
-        return 'image-placeholder';
-    }
-});
+const buildSpaceModule = (spaceState) => {
+    const callExplorerTool = async (toolName, args = {}) => {
+        return assistosSDK.callTool(EXPLORER_AGENT_ID, toolName, args);
+    };
+
+    const getDocumentContext = () => resolveDocumentContext(spaceState);
+
+    const ensureDirectory = async (directoryPath) => {
+        await callExplorerTool('create_directory', { path: directoryPath });
+    };
+
+    const writeBinaryFile = async (relativePath, data) => {
+        await callExplorerTool('write_binary_file', {
+            path: relativePath,
+            content: toBase64(data),
+            encoding: 'base64'
+        });
+    };
+
+    return {
+        async getSpaceStatus() {
+            return {
+                spaceGlobalId: spaceState.id,
+                status: 'active',
+                plugins: spaceState.plugins
+            };
+        },
+        async getCommands() {
+            return [...DEFAULT_COMMANDS];
+        },
+        async getCustomTypes() {
+            return [...DEFAULT_CUSTOM_TYPES];
+        },
+        async getImageURL(imageId) {
+            return imageId ? `/${imageId}` : '';
+        },
+        async getAudioURL(audioId) {
+            if (!audioId) {
+                return '';
+            }
+            const context = getDocumentContext();
+            if (!context) {
+                return `/${audioId}`;
+            }
+            const mediaPath = `${DOCUMENT_MEDIA_ROOT}/${context.folder}/${audioId}${AUDIO_FILE_EXTENSION}`;
+            return `/${mediaPath}`;
+        },
+        async putAudio(uint8Array) {
+            if (!(uint8Array instanceof Uint8Array)) {
+                throw new Error('Audio payload must be a Uint8Array.');
+            }
+            const context = getDocumentContext();
+            if (!context) {
+                throw new Error('No active document context. Open a document before uploading audio.');
+            }
+            const mediaId = generateRandomId('audio');
+            const directory = `${DOCUMENT_MEDIA_ROOT}/${context.folder}`;
+            await ensureDirectory(directory);
+            const relativePath = `${directory}/${mediaId}${AUDIO_FILE_EXTENSION}`;
+            await writeBinaryFile(relativePath, uint8Array);
+            return mediaId;
+        },
+        async putImage(_arrayBuffer) {
+            return 'image-placeholder';
+        }
+    };
+};
 
 const buildGalleryModule = () => ({
     async getGalleries() {

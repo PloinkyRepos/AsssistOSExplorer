@@ -132,6 +132,11 @@
             "presenterClassName": "DocumentTasksModal"
         },
         {
+            "name": "show-error-modal",
+            "type": "modals",
+            "presenterClassName": "ShowErrorModal"
+        },
+        {
             "name": "export-document-modal",
             "type": "modals",
             "presenterClassName": "ExportDocumentModal"

@@ -185,15 +185,6 @@ textarea.paragraph-commands{
     margin-right: 5px;
     width: 20px;
 }
-.personality-icon{
-    width: 30px;
-    object-fit: cover;
-    height: 30px;
-    border-radius: 50%;
-}
-.personality-name{
-    margin-right: 5px;
-}
 .silence-duration{
     margin-left: 5px;
 }

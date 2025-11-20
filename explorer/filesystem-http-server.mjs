@@ -414,6 +414,11 @@ const ReadTextFileArgsSchema = z.object({
 const ReadMediaFileArgsSchema = z.object({ path: z.string() });
 const ReadMultipleFilesArgsSchema = z.object({ paths: z.array(z.string()) });
 const WriteFileArgsSchema = z.object({ path: z.string(), content: z.string() });
+const WriteBinaryFileArgsSchema = z.object({
+  path: z.string(),
+  content: z.string().describe('Base64-encoded binary content'),
+  encoding: z.enum(['base64']).optional().default('base64')
+});
 const EditOperation = z.object({ oldText: z.string(), newText: z.string() });
 const EditFileArgsSchema = z.object({ path: z.string(), edits: z.array(EditOperation), dryRun: z.boolean().default(false) });
 const CreateDirectoryArgsSchema = z.object({ path: z.string() });
@@ -480,6 +485,11 @@ server.setRequestHandler(ListToolsRequestSchema, async () => ({
       name: 'write_file',
       description: 'Create or overwrite a file with new content.',
       inputSchema: zodToJsonSchema(WriteFileArgsSchema)
+    },
+    {
+      name: 'write_binary_file',
+      description: 'Create or overwrite a binary file using base64 encoded content.',
+      inputSchema: zodToJsonSchema(WriteBinaryFileArgsSchema)
     },
     {
       name: 'edit_file',
@@ -620,6 +630,17 @@ server.setRequestHandler(CallToolRequestSchema, async (request) => {
         const validPath = await validatePath(parsed.data.path);
         await writeFileContent(validPath, parsed.data.content);
         return { content: [{ type: 'text', text: `Successfully wrote to ${parsed.data.path}` }] };
+      }
+      case 'write_binary_file': {
+        const parsed = WriteBinaryFileArgsSchema.safeParse(args);
+        if (!parsed.success) throw new Error(`Invalid arguments for write_binary_file: ${parsed.error}`);
+        const validPath = await validatePath(parsed.data.path);
+        const dirName = path.dirname(validPath);
+        await fs.mkdir(dirName, { recursive: true });
+        const encoding = parsed.data.encoding ?? 'base64';
+        const buffer = Buffer.from(parsed.data.content, encoding);
+        await fs.writeFile(validPath, buffer);
+        return { content: [{ type: 'text', text: `Successfully wrote binary data to ${parsed.data.path}` }] };
       }
       case 'edit_file': {
         const parsed = EditFileArgsSchema.safeParse(args);

@@ -25,7 +25,7 @@ export function resolveRuntimeAssetUrl(agent, component, assetPath, fallback = '
     return `/${agent}/IDE-plugins/${component}/${cleaned}`;
 }
 
-export function computeComponentBaseUrl(agent, component, { ownerComponent, isDependency, customPath } = {}) {
+export function computeComponentBaseUrl(agent, component, {ownerComponent, isDependency, customPath} = {}) {
     if (!isNonEmptyString(agent) || !isNonEmptyString(component)) {
         return '';
     }
@@ -162,7 +162,7 @@ export function mergeRuntimePluginsIntoAssistOS(assistOS, runtimePlugins) {
 }
 
 export async function fetchTextOrThrow(url, description) {
-    const response = await fetch(url, { cache: 'no-cache' });
+    const response = await fetch(url, {cache: 'no-cache'});
     if (!response.ok) {
         throw new Error(`${description} (${response.status})`);
     }
@@ -170,7 +170,7 @@ export async function fetchTextOrThrow(url, description) {
 }
 
 export async function fetchOptionalText(url) {
-    const response = await fetch(url, { cache: 'no-cache' });
+    const response = await fetch(url, {cache: 'no-cache'});
     if (!response.ok) {
         return '';
     }
@@ -205,12 +205,12 @@ export function scopeCssToComponent(cssText, componentName) {
 }
 
 export async function registerRuntimeComponent(webSkel, componentDefinition) {
-    const { name, loadedTemplate, loadedCSSs, presenterClassName, presenterModule } = componentDefinition;
+    const {name, loadedTemplate, loadedCSSs, presenterClassName, presenterModule} = componentDefinition;
     const resourceManager = webSkel.ResourceManager;
 
     const ensurePresenterRegistered = async () => {
         if (presenterClassName && presenterModule && presenterModule[presenterClassName]) {
-        resourceManager.registerPresenter(name, presenterModule[presenterClassName]);
+            resourceManager.registerPresenter(name, presenterModule[presenterClassName]);
         }
     };
 
@@ -225,13 +225,14 @@ export async function registerRuntimeComponent(webSkel, componentDefinition) {
         entry.html = loadedTemplate;
         entry.css = Array.isArray(loadedCSSs) ? loadedCSSs : [];
         entry.isPromiseFulfilled = true;
-        entry.loadingPromise = Promise.resolve({ html: entry.html, css: entry.css });
+        entry.loadingPromise = Promise.resolve({html: entry.html, css: entry.css});
         resourceManager.components[name] = entry;
 
         if (entry.css.length > 0) {
             try {
                 await resourceManager.unloadStyleSheets(name);
-            } catch (_) { /* ignore */ }
+            } catch (_) { /* ignore */
+            }
             await resourceManager.loadStyleSheets(entry.css, name);
         }
         await ensurePresenterRegistered();
@@ -274,7 +275,7 @@ async function openPlugin(componentName, type, context, presenter, autoPin = fal
     }
     await initializePlugin(plugin);
     highlightPlugin(type, componentName, presenter);
-    if(plugin.type === "embedded"){
+    if (plugin.type === "embedded") {
         let pluginContainer = presenter.element.querySelector(`.${type}-plugin-container`);
         let contextString = encodeURIComponent(JSON.stringify(context));
         pluginContainer.classList.add("plugin-open");
@@ -295,20 +296,26 @@ async function openPlugin(componentName, type, context, presenter, autoPin = fal
         }
     }
 }
+
 function removeHighlightPlugin(type, presenter) {
     let highlightPluginClass = `${type}-highlight-plugin`;
     let pluginIcon = presenter.element.querySelector(`.icon-container.${highlightPluginClass}`);
-    pluginIcon.classList.remove(highlightPluginClass);
+    if (pluginIcon) {
+        pluginIcon.classList.remove(highlightPluginClass);
+    }
+
 }
+
 function highlightPlugin(type, componentName, presenter) {
     let highlightPluginClass = `${type}-highlight-plugin`;
     let highlightPlugin = presenter.element.querySelector(`.${highlightPluginClass}`);
-    if(highlightPlugin){
+    if (highlightPlugin) {
         highlightPlugin.classList.remove(highlightPluginClass);
     }
     let pluginIcon = presenter.element.querySelector(`.icon-container.${componentName}`);
     pluginIcon.classList.add(highlightPluginClass);
 }
+
 async function initializePlugin(plugin) {
     if (!plugin || plugin.initialized) {
         return;
@@ -337,8 +344,9 @@ async function renderPluginIcons(containerElement, type) {
         }
     }
 }
+
 function attachPluginTooltip(containerElement, plugin, type, autoPin = false) {
-    containerElement.classList.add("icon-container", plugin.component, "pointer");
+    containerElement.classList.add("icon-container", "plugin-circle", plugin.component, "pointer");
     containerElement.setAttribute("data-local-action", `openPlugin ${type} ${plugin.component} ${autoPin}`);
     let tooltip = containerElement.querySelector(".plugin-name");
     if (!tooltip) {
@@ -347,13 +355,17 @@ function attachPluginTooltip(containerElement, plugin, type, autoPin = false) {
         tooltip.innerHTML = plugin.tooltip;
         containerElement.appendChild(tooltip);
     }
-    containerElement.addEventListener("mouseover", async ()=>{
+    containerElement.addEventListener("mouseover", async () => {
         containerElement.querySelector(".plugin-name").style.display = "block";
     });
-    containerElement.addEventListener("mouseout", async ()=>{
+    containerElement.addEventListener("mouseout", async () => {
         containerElement.querySelector(".plugin-name").style.display = "none";
     });
+    containerElement.addEventListener("plugin-modal-closed", () => {
+        containerElement.classList.remove(`${type}-highlight-plugin`);
+    });
 }
+
 async function getPluginIcon(plugin) {
     const icon = typeof plugin.icon === 'string' ? plugin.icon.trim() : '';
     if (!icon) {

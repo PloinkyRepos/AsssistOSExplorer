@@ -1,5 +1,4 @@
 const documentModule = assistOS.loadModule("document");
-const agentModule = assistOS.loadModule("agent");
 const spaceModule = assistOS.loadModule("space");
 import {executorTimer, unescapeHtmlEntities} from "../../../imports.js";
 import UIUtils from "./UIUtils.js";
@@ -28,7 +27,9 @@ export class DocumentViewPage {
             }
 
             this.documentId = this._document.id;
-            this.agents = await agentModule.getAgents(assistOS.space.id);
+            assistOS.space.currentDocumentId = this._document.docId || this._document.id;
+            assistOS.space.currentDocumentMetadataId = this._document.documentId || this._document.metadata?.id || '';
+            assistOS.space.currentDocumentPath = this._document.path || null;
         });
     }
     async refreshVariables(){
@@ -41,30 +42,6 @@ export class DocumentViewPage {
     }
     async printDocument() {
         await assistOS.UI.showModal("print-document-modal", {id: this._document.id, title: this._document.title});
-    }
-
-    async getPersonalityName(personalityId) {
-        let personality = this.agents.find(personality => personality.id === personalityId);
-        return personality.name;
-    }
-
-    async getPersonalityImageByName(personalityName) {
-        let personality = this.agents.find(personality => personality.name === personalityName);
-        let personalityImageId;
-        if (personality) {
-            personalityImageId = personality.imageId;
-        } else {
-            personalityImageId = null;
-            throw new Error("Personality not found");
-        }
-        if (personalityImageId) {
-            return await spaceModule.getImageURL(personalityImageId);
-        }
-        return "./assets/images/default-personality.png"
-    }
-
-    async refreshAgents() {
-        this.agents = await agentModule.getAgents(assistOS.space.id);
     }
 
     async insertNewChapter(chapterId, position) {
@@ -284,10 +261,15 @@ export class DocumentViewPage {
             this._document.comments);
     }
     async updateLastOpenedPlugin(pluginName) {
-        if (this._document.comments.pluginLastOpened === pluginName) {
-            return; // No change in plugin
+        const normalized = pluginName || "";
+        if (this._document.comments.pluginLastOpened === normalized) {
+            return;
         }
-        this._document.comments.pluginLastOpened = pluginName;
+        if (normalized) {
+            this._document.comments.pluginLastOpened = normalized;
+        } else {
+            delete this._document.comments.pluginLastOpened;
+        }
         await documentModule.updateDocument(assistOS.space.id, this._document.id,
             this._document.title,
             this._document.docId,

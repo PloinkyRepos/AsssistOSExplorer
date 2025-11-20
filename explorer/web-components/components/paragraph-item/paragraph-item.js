@@ -95,10 +95,15 @@ export class ParagraphItem {
             this.paragraph.comments);
     }
     async updateLastOpenedPlugin(pluginName) {
-        if (this.paragraph.comments.pluginLastOpened === pluginName) {
-            return; // No change in plugin
+        const normalized = pluginName || "";
+        if (this.paragraph.comments.pluginLastOpened === normalized) {
+            return;
         }
-        this.paragraph.comments.pluginLastOpened = pluginName;
+        if (normalized) {
+            this.paragraph.comments.pluginLastOpened = normalized;
+        } else {
+            delete this.paragraph.comments.pluginLastOpened;
+        }
         await documentModule.updateParagraph(assistOS.space.id, this.chapter.id, this.paragraph.id,
             this.paragraph.text,
             this.paragraph.commands,

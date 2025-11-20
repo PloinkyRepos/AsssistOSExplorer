@@ -23,11 +23,6 @@ audio-creator{
     display: flex;
     flex-direction: column;
 }
-.form-row{
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-}
 .form-label{
     font-size: 16px;
     font-weight: 600;
@@ -52,15 +47,6 @@ audio-creator{
 audio:not([controls]) {
     display: block;
 }
-.personality-item{
-    width: 160px;
-}
-
-.bottom-row{
-    display: flex;
-    justify-content: space-between;
-    align-items: end;
-}
 .paragraph-audio{
 }
 .delete-speech{
@@ -83,9 +69,6 @@ audio-menu #volume{
     width: 60px;
 }
 
-#styleGuidance{
-    height: 43px;
-}
 audio-menu .right-margin{
     margin-right: 10px;
 }
@@ -113,4 +96,13 @@ audio-menu .right-margin{
 }
 audio-menu .video-warning-icon{
     width: 30px;
+}
+.tts-actions{
+    display: flex;
+    gap: 10px;
+    margin-bottom: 10px;
+}
+.tts-info{
+    font-size: 14px;
+    color: var(--default-font-color);
 }

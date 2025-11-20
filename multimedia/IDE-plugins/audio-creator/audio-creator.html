@@ -37,24 +37,14 @@
             <button data-local-action="insertSoundEffect" class="general-button">Insert Sound Effect</button>
             <div class="current-effects">$$currentEffects</div>
         </div>
-        <form class="tts-section">
+        <div class="tts-section">
             <div class="section-header">Text to Speech</div>
-            <button class="general-button delete-speech hidden" data-local-action="deleteSpeech">Delete Speech</button>
-            <div class="form-row">
-                <div class="form-item personality-item">
-                    <label for="personality" class="form-label">Select Personality</label>
-                    <select class="form-input" id="personality" data-id="personality" name="personality" required>
-                        <option disabled selected value="">Select Personality</option>
-                        $$personalitiesHTML
-                    </select>
-                </div>
-                $$emotionsSelect
-            </div>
-            <div class="bottom-row">
-                $$styleGuidanceSlide
+            <div class="tts-actions">
                 <button class="general-button maintain-focus" data-local-action="insertSpeech">Insert Task</button>
+                <button class="general-button delete-speech hidden" data-local-action="deleteSpeech">Delete Speech</button>
             </div>
-        </form>
+            <div class="tts-info">Text to speech uses the default voice configuration.</div>
+        </div>
     </div>
 
 </div>

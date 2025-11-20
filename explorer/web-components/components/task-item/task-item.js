@@ -24,35 +24,17 @@ export class TaskItem{
         this.name = this.task.name;
         this.status = this.task.status;
         this.paragraphItem = document.querySelector(`paragraph-item[data-paragraph-id="${this.task.configs.paragraphId}"]`);
+        const sourceCommand = (this.task.configs?.sourceCommand || this.task.name || "task").toString();
+        this.taskAgent = sourceCommand.charAt(0).toUpperCase() + sourceCommand.slice(1);
+        this.taskIconSrc = "./assets/icons/task.svg";
         if(!this.paragraphItem){
             this.paragraphText = "...........";
-            if(this.task.configs.personalityId){
-                let documentPage = document.querySelector("document-view-page");
-                let documentPresenter = documentPage.webSkelPresenter;
-                let personalityName = await documentPresenter.getPersonalityName(this.task.configs.personalityId);
-                this.agent = personalityName;
-                this.personalityImageSrc = await documentPresenter.getPersonalityImageByName(personalityName);
-            } else {
-                this.agent = "none";
-                this.personalityImageSrc = "./assets/images/default-personality.png";
-            }
             return;
         }
         this.paragraphPresenter = this.paragraphItem.webSkelPresenter;
         this.paragraphText = this.paragraphPresenter.paragraph.text || "...........";
-        if(this.paragraphPresenter.paragraph.commands.speech){
-            this.agent = this.paragraphPresenter.paragraph.commands.speech.personality;
-            this.personalityImageSrc = await this.paragraphPresenter.documentPresenter.getPersonalityImageByName(this.agent);
-        } else {
-            this.agent = "none";
-            this.personalityImageSrc = "./assets/images/default-personality.png";
-        }
     }
     afterRender(){
-        let agentImage = this.element.querySelector(".agent-image");
-        agentImage.addEventListener("error", (e)=>{
-            e.target.src = "./assets/images/default-personality.png";
-        });
         let taskStatus = this.element.querySelector(".task-status");
         if(this.status === "failed"){
             taskStatus.setAttribute("data-local-action", "showTaskFailInfo");

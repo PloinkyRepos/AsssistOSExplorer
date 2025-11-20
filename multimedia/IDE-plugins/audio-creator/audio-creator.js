@@ -1,5 +1,3 @@
-const llmModule = assistOS.loadModule("llm");
-const personalityModule = assistOS.loadModule("personality");
 const spaceModule = assistOS.loadModule("space");
 const documentModule = assistOS.loadModule("document");
 
@@ -22,92 +20,32 @@ export class AudioCreator {
         let chapterId = context.chapterId;
         let chapter = this._document.chapters.find(chapter => chapter.id === chapterId);
         this.paragraphId = context.paragraphId;
-        this.paragraphPresenter = documentPresenter.element.querySelector(`paragraph-item[data-paragraph-id="${this.paragraphId}"]`).webSkelPresenter;
-        this.commandsEditor = this.paragraphPresenter.commandsEditor;
+        let paragraphElement = documentPresenter.element.querySelector(`paragraph-item[data-paragraph-id="${this.paragraphId}"]`);
+        this.paragraphPresenter = paragraphElement ? paragraphElement.webSkelPresenter : null;
+        this.commandsEditor = this.paragraphPresenter ? this.paragraphPresenter.commandsEditor : null;
         this.paragraph = chapter.paragraphs.find(paragraph => paragraph.id === this.paragraphId);
         this.commands = this.paragraph.commands;
-        let pluginIconContainer = this.paragraphPresenter.element.querySelector(".plugin-circle.audio-creator");
-        let pluginIcon = pluginIconContainer.querySelector("simple-state-icon");
-        this.iconPresenter = pluginIcon.webSkelPresenter;
-        this.invalidate(async () => {
-            this.personalities = await personalityModule.getPersonalities(assistOS.space.id);
-        });
+        let pluginIconContainer = this.paragraphPresenter ? this.paragraphPresenter.element.querySelector(".plugin-circle.audio-creator") : null;
+        if (pluginIconContainer) {
+            let pluginIcon = pluginIconContainer.querySelector("simple-state-icon");
+            this.iconPresenter = pluginIcon ? pluginIcon.webSkelPresenter : null;
+        } else {
+            this.iconPresenter = null;
+            console.warn("AudioCreator: plugin icon container not found.");
+        }
+        this.invalidate();
         this.element.classList.add("maintain-focus");
     }
 
     async beforeRender() {
         this.currentEffects = "";
-        this.emotionsSelect = "";
-        this.styleGuidanceSlide = "";
         if(this.commands.effects){
             for(let effect of this.commands.effects){
                 this.currentEffects += `<effect-item class="pointer" data-presenter="effect-item" data-id="${effect.id}"></effect-item>`;
             }
         }
-        let personalitiesHTML = "";
-        let configuredPersonalitiesFound = 0;
-        for (let personality of this.personalities) {
-            if (personality.voiceId) {
-                personalitiesHTML += `<option value="${personality.id}">${personality.name}</option>`;
-                configuredPersonalitiesFound++;
-            }
-        }
-        if (configuredPersonalitiesFound === 0) {
-            personalitiesHTML += `<option value="default" disabled>No personalities with voice</option>`;
-        } else if (configuredPersonalitiesFound <= this.personalities.length) {
-            personalitiesHTML += `<option value="default" disabled>${this.personalities.length - configuredPersonalitiesFound} personalities unconfigured</option>`;
-        }
-        this.personalitiesHTML = personalitiesHTML;
-        if (this.commands.speech && this.commands.speech.personality) {
-            let emotionsHTML = await this.getEmotionsHTML(this.commands.speech.personality);
-            if(emotionsHTML){
-                this.emotionsSelect = emotionsHTML;
-                this.styleGuidanceSlide = this.getStyleGuidanceHMTL();
-            }
-        }
-    }
-    async getEmotionsHTML(personalityName){
-        let personality = this.personalities.find(personality => personality.name === personalityName);
-        let emotions = await llmModule.listEmotions(assistOS.space.id, personality.llms["audio"]);
-        if(emotions.length > 0){
-            let emotionsHTML = "";
-            for (let emotion of emotions) {
-                emotionsHTML += `<option value="${emotion}">${emotion}</option>`;
-            }
-            return `<div class="form-item" id="emotionsSelect">
-                    <label for="emotion" class="form-label">Select Emotion</label>
-                    <select class="form-input" id="emotion" data-id="emotion" name="emotion" required>
-                        <option disabled selected value="">Select Emotion</option>
-                        ${emotionsHTML}
-                    </select>
-                </div>`;
-        }
-    }
-    getStyleGuidanceHMTL(){
-        return `<div class="form-item" id="styleGuidanceSlide">
-                    <label for="styleGuidance" class="form-label">Emotion Intensity</label>
-                    <input type="range" name="styleGuidance" id="styleGuidance" min="1" max="30" value="15">
-                </div>`;
     }
     async afterRender() {
-        if (this.commands.speech && this.commands.speech.personality) {
-            let personality = this.personalities.find(personality => personality.name === this.commands.speech.personality);
-            let personalityId = personality.id;
-            let personalityOption = this.element.querySelector(`option[value="${personalityId}"]`);
-            personalityOption.selected = true;
-            if(this.commands.speech.emotion){
-                let emotionOption = this.element.querySelector(`option[value="${this.commands.speech.emotion}"]`);
-                if(emotionOption){
-                    emotionOption.selected = true;
-                }
-            }
-            if(this.commands.speech.styleGuidance){
-                let styleGuidance = this.element.querySelector(`#styleGuidance`);
-                if(styleGuidance){
-                    styleGuidance.value = this.commands.speech.styleGuidance;
-                }
-            }
-        }
         if(this.commands.audio){
             let audioElement = this.element.querySelector(".paragraph-audio");
             audioElement.classList.remove("hidden");
@@ -141,26 +79,6 @@ export class AudioCreator {
             let warnMessage = `No text to convert to speech`;
             this.showSpeechWarning(warnMessage);
         }
-        let personalitySelect = this.element.querySelector("#personality");
-        personalitySelect.addEventListener("change", async (e) => {
-            let personalityId = e.target.value;
-            let selectedPersonality = this.personalities.find(personality => personality.id === personalityId).name;
-            let emotionsHTML = await this.getEmotionsHTML(selectedPersonality);
-            let emotionsSelect = this.element.querySelector("#emotionsSelect");
-            if(emotionsSelect){
-                emotionsSelect.remove();
-            }
-            let styleGuidanceSlide = this.element.querySelector("#styleGuidanceSlide");
-            if(styleGuidanceSlide){
-                styleGuidanceSlide.remove();
-            }
-            if(emotionsHTML){
-                let personalityFormItem = this.element.querySelector(".personality-item");
-                personalityFormItem.insertAdjacentHTML("afterend", emotionsHTML);
-                let bottomRow = this.element.querySelector(".bottom-row");
-                bottomRow.insertAdjacentHTML("afterbegin", this.getStyleGuidanceHMTL());
-            }
-        });
     }
     async saveVolume(button){
         let volumeInput = this.element.querySelector("#volume");
@@ -178,56 +96,78 @@ export class AudioCreator {
         let ttsSection = this.element.querySelector(".tts-section");
         ttsSection.insertAdjacentHTML("beforeend", warning);
     }
-    async insertSpeech(_target) {
-        const formData = await assistOS.UI.extractFormInformation(_target);
-        if (!formData.isValid) {
+    async insertSpeech() {
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
             return;
         }
-        let personalityName = this.personalities.find(personality => personality.id === formData.data.personality).name;
-        let speech = {
-            personality: personalityName,
-            emotion: formData.data.emotion,
-            styleGuidance: formData.data.styleGuidance
-        };
-        for(let key in speech){
-            if(typeof speech[key] === "undefined"){
-                delete speech[key];
-            }
-        }
-        await this.commandsEditor.insertCommandWithTask("speech", speech);
+        await this.commandsEditor.insertCommandWithTask("speech", {});
         this.invalidate();
     }
     async insertAudio(){
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
+            return;
+        }
         let audioId = await this.commandsEditor.insertAttachmentCommand("audio");
         if(audioId){
+            await this.saveAudioAttachmentVariable(audioId);
             this.changeIconState("on");
-            this.iconPresenter.highlightIcon();
+            if (this.iconPresenter && typeof this.iconPresenter.highlightIcon === "function") {
+                this.iconPresenter.highlightIcon();
+            }
             this.invalidate();
         }
     }
     async deleteAudio(){
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
+            return;
+        }
         await this.commandsEditor.deleteCommand("audio");
         this.changeIconState("off");
-        this.iconPresenter.removeHighlight();
+        if (this.iconPresenter && typeof this.iconPresenter.removeHighlight === "function") {
+            this.iconPresenter.removeHighlight();
+        }
         this.invalidate();
     }
     async deleteSpeech(){
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
+            return;
+        }
         await this.commandsEditor.deleteCommand("speech");
         this.invalidate();
     }
     async deleteSilence(){
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
+            return;
+        }
         await this.commandsEditor.deleteCommand("silence");
         this.invalidate();
     }
     async insertSoundEffect(){
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
+            return;
+        }
         await this.commandsEditor.insertAttachmentCommand("effects");
         this.invalidate();
     }
     async deleteEffect(button, id){
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
+            return;
+        }
         await this.commandsEditor.deleteCommand("effects", id);
         this.invalidate();
     }
     async insertSilence(targetElement) {
+        if (!this.ensureContext()) {
+            assistOS.showToast("Paragraph context missing, please reopen the plugin.", "error");
+            return;
+        }
         let silenceInput = this.element.querySelector("#silence");
         let data = {
             duration: parseInt(silenceInput.value)
@@ -235,12 +175,49 @@ export class AudioCreator {
         await this.commandsEditor.insertSimpleCommand("silence", data);
         this.invalidate();
     }
+    async saveAudioAttachmentVariable(audioId) {
+        try {
+            const audioUrl = await spaceModule.getAudioURL(audioId);
+            if (!audioUrl) {
+                return;
+            }
+            await documentModule.setVarValue(assistOS.space.id, this._document.docId, "audio-attachment", audioUrl);
+        } catch (error) {
+            console.error("Failed to persist audio attachment variable", error);
+        }
+    }
     changeIconState(state){
+        if (!this.ensureContext()) {
+            return;
+        }
         let pluginIcon = this.paragraphPresenter.element.querySelector(".plugin-circle.audio-creator");
+        if(!pluginIcon){
+            return;
+        }
         if(state === "on"){
             pluginIcon.classList.add("highlight-attachment");
         }else {
             pluginIcon.classList.remove("highlight-attachment");
         }
+    }
+    ensureContext(){
+        if (this.paragraphPresenter && this.commandsEditor) {
+            return true;
+        }
+        const documentViewPage = document.querySelector("document-view-page");
+        if (!documentViewPage || !documentViewPage.webSkelPresenter) {
+            return false;
+        }
+        const documentPresenter = documentViewPage.webSkelPresenter;
+        if (!documentPresenter) {
+            return false;
+        }
+        const paragraphElement = documentPresenter.element.querySelector(`paragraph-item[data-paragraph-id="${this.paragraphId}"]`);
+        if (!paragraphElement) {
+            return false;
+        }
+        this.paragraphPresenter = paragraphElement.webSkelPresenter;
+        this.commandsEditor = this.paragraphPresenter ? this.paragraphPresenter.commandsEditor : null;
+        return Boolean(this.paragraphPresenter && this.commandsEditor);
     }
 }
