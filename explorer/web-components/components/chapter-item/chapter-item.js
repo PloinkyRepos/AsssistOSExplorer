@@ -229,6 +229,7 @@ export class ChapterItem {
         this.changeChapterDeleteAvailability();
         UIUtils.changeCommentIndicator(this.element, this.chapter.comments.messages);
         UIUtils.displayCurrentStatus(this.element, this.chapter.comments, "chapter");
+        this.renderInfoIcons();
 /*        if(this.chapter.comments.pluginLastOpened){
             await this.openPlugin("", "chapter", this.chapter.comments.pluginLastOpened, true);
         }*/
@@ -306,6 +307,35 @@ export class ChapterItem {
         } else if (event.ctrlKey && !event.shiftKey && event.key === "Enter") {
             await this.addParagraph("", "below");
         }
+    }
+
+    renderInfoIcons() {
+        const info = {
+            media: this.hasChapterMedia(),
+            variables: Array.isArray(this.chapter.variables) && this.chapter.variables.length > 0,
+            commands: this.hasChapterCommands()
+        };
+        UIUtils.renderInfoIcons(this.element, info);
+    }
+
+    hasChapterCommands() {
+        const rawCommands = typeof this.chapter.metadata?.commands === "string"
+            ? this.chapter.metadata.commands.trim()
+            : '';
+        return rawCommands.length > 0;
+    }
+
+    hasChapterMedia() {
+        if (this.chapter.backgroundSound) {
+            return true;
+        }
+        if (Array.isArray(this.chapter.attachments) && this.chapter.attachments.length > 0) {
+            return true;
+        }
+        if (Array.isArray(this.chapter.variables)) {
+            return this.chapter.variables.some((variable) => variable.name === "audio-attachment" && variable.value);
+        }
+        return false;
     }
 
 

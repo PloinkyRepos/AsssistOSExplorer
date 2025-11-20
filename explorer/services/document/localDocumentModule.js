@@ -253,6 +253,28 @@ const encodeBase64 = (value) => {
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
+const deriveChapterBackgroundSound = (chapter = {}, metadata = {}) => {
+    const variableSource = Array.isArray(chapter.variables)
+        ? chapter.variables
+        : Array.isArray(metadata.variables)
+            ? metadata.variables
+            : [];
+    const audioVariable = variableSource.find((variable) => variable?.name === 'audio-attachment' && variable.value);
+    if (!audioVariable) {
+        return null;
+    }
+    const options = audioVariable.options || {};
+    return {
+        id: options.id ?? '',
+        url: typeof audioVariable.value === 'string' ? audioVariable.value : '',
+        volume: typeof options.volume === 'number' ? options.volume : 50,
+        loop: Boolean(options.loop),
+        duration: typeof options.duration === 'number' ? options.duration : 0,
+        start: typeof options.start === 'number' ? options.start : 0,
+        end: typeof options.end === 'number' ? options.end : (typeof options.duration === 'number' ? options.duration : 0)
+    };
+};
+
 const createCommentDefaults = (comments = {}) => ({
     messages: [],
     status: null,
@@ -312,11 +334,9 @@ const hydrateChapterModel = (chapter, index) => {
         paragraphs = [defaultParagraph];
     }
 
-    const normalizedBackgroundSound = chapter.backgroundSound
-        ? { ...chapter.backgroundSound }
-        : null;
+    const backgroundSound = deriveChapterBackgroundSound(chapter, metadata);
 
-    return new Chapter({
+    const chapterInstance = new Chapter({
         id: metadata.id,
         metadata,
         title: metadata.title ?? headingText,
@@ -332,9 +352,14 @@ const hydrateChapterModel = (chapter, index) => {
         snapshots: metadata.snapshots ?? [],
         tasks: metadata.tasks ?? [],
         variables: metadata.variables ?? [],
-        paragraphs,
-        backgroundSound: normalizedBackgroundSound
+        paragraphs
     });
+
+    if (backgroundSound) {
+        chapterInstance.backgroundSound = backgroundSound;
+    }
+
+    return chapterInstance;
 };
 
 const hydrateDocumentModel = (document, path) => {
@@ -493,36 +518,28 @@ const serializeParagraph = (paragraph) => ({
     hasMetadata: true
 });
 
-const serializeChapter = (chapter) => {
-    const serialized = {
+const serializeChapter = (chapter) => ({
+    id: chapter.id,
+    metadata: decodeValueDeep({
+        ...chapter.metadata,
         id: chapter.id,
-        metadata: decodeValueDeep({
-            ...chapter.metadata,
-            id: chapter.id,
-            title: decodeString(chapter.title ?? chapter.metadata?.title ?? ''),
-            commands: chapter.commands,
-            comments: chapter.comments,
-            pluginState: chapter.pluginState,
-            references: chapter.references,
-            attachments: chapter.attachments,
-            snapshots: chapter.snapshots,
-            tasks: chapter.tasks,
-            variables: chapter.variables
-        }),
-        heading: {
-            level: chapter.headingLevel ?? chapter.metadata.headingLevel ?? 2,
-            text: decodeString(chapter.headingText ?? chapter.title)
-        },
-        leading: decodeString(chapter.leading ?? ''),
-        paragraphs: chapter.paragraphs.map(serializeParagraph)
-    };
-
-    if (chapter.backgroundSound) {
-        serialized.backgroundSound = decodeValueDeep(chapter.backgroundSound);
-    }
-
-    return serialized;
-};
+        title: decodeString(chapter.title ?? chapter.metadata?.title ?? ''),
+        commands: chapter.commands,
+        comments: chapter.comments,
+        pluginState: chapter.pluginState,
+        references: chapter.references,
+        attachments: chapter.attachments,
+        snapshots: chapter.snapshots,
+        tasks: chapter.tasks,
+        variables: chapter.variables
+    }),
+    heading: {
+        level: chapter.headingLevel ?? chapter.metadata.headingLevel ?? 2,
+        text: decodeString(chapter.headingText ?? chapter.title)
+    },
+    leading: decodeString(chapter.leading ?? ''),
+    paragraphs: chapter.paragraphs.map(serializeParagraph)
+});
 
 const serializeDocumentModel = (document) => ensureDocumentStructure({
     metadata: decodeValueDeep({
@@ -842,21 +859,7 @@ const documentModule = {
         await persistDocument(documentPath ?? documentReference.path ?? documentIdOrPathOrChapterId);
         return chapter;
     },
-    async updateChapterBackgroundSound(_spaceId, documentIdOrPath, chapterId, backgroundSound) {
-        const document = await getDocumentModel(documentIdOrPath);
-        const chapter = document.chapters.find((item) => item.id === chapterId);
-        if (!chapter) {
-            throw new Error(`Chapter ${chapterId} not found.`);
-        }
-        if (backgroundSound && typeof backgroundSound === 'object') {
-            chapter.backgroundSound = { ...backgroundSound };
-        } else {
-            delete chapter.backgroundSound;
-        }
-        await persistDocument(documentIdOrPath);
-        return chapter;
-    },
-    async setChapterVarValue(_spaceId, documentIdOrPath, chapterId, varName, value) {
+    async setChapterVarValue(_spaceId, documentIdOrPath, chapterId, varName, value, options = undefined) {
         const document = await getDocumentModel(documentIdOrPath);
         const chapter = document.chapters.find((item) => item.id === chapterId);
         if (!chapter) {
@@ -871,6 +874,13 @@ const documentModule = {
             chapter.variables.push(variable);
         }
         variable.value = value;
+        if (options !== undefined) {
+            if (options === null) {
+                delete variable.options;
+            } else {
+                variable.options = options;
+            }
+        }
         chapter.metadata.variables = chapter.variables;
         await persistDocument(documentIdOrPath);
         return variable;

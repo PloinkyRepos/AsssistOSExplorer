@@ -77,6 +77,7 @@ export class ParagraphItem {
         }
         UIUtils.changeCommentIndicator(this.element, this.paragraph.comments.messages);
         UIUtils.displayCurrentStatus(this.element, this.paragraph.comments, "paragraph");
+        this.renderInfoIcons();
         if(this.paragraph.comments.pluginLastOpened){
             await this.openPlugin("", "paragraph", this.paragraph.comments.pluginLastOpened, true);
         }
@@ -236,7 +237,42 @@ export class ParagraphItem {
                 }
                 this.currentPlugin = await this.closePlugin("", true);
             }
+
         );
+    }
+
+    renderInfoIcons() {
+        const info = {
+            media: this.hasParagraphMedia(),
+            variables: Array.isArray(this.paragraph.variables) && this.paragraph.variables.length > 0,
+            commands: this.hasParagraphCommands()
+        };
+        UIUtils.renderInfoIcons(this.element, info);
+    }
+
+    hasParagraphCommands() {
+        const metadataCommands = typeof this.paragraph.metadata?.commands === "string"
+            ? this.paragraph.metadata.commands.trim()
+            : "";
+        if (metadataCommands.length > 0) {
+            return true;
+        }
+        const runtimeCommands = this.paragraph.commands;
+        if (runtimeCommands && typeof runtimeCommands === "object") {
+            return Object.keys(runtimeCommands).length > 0;
+        }
+        return false;
+    }
+
+    hasParagraphMedia() {
+        if (Array.isArray(this.paragraph.attachments) && this.paragraph.attachments.length > 0) {
+            return true;
+        }
+        const runtimeCommands = this.paragraph.commands;
+        if (runtimeCommands && typeof runtimeCommands === "object") {
+            return Boolean(runtimeCommands.audio || runtimeCommands.video || runtimeCommands.image || runtimeCommands.effects);
+        }
+        return false;
     }
 
 

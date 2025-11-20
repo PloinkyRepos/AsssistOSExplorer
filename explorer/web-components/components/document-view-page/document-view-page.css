@@ -509,11 +509,16 @@ html[theme="dark"] input.document-title {
 
 .preview-icons {
     position: absolute;
-    left: -31px;
-    top: 0;
-    height: 100%;
-    display: flex;
-    flex-direction: column;
+    right: 4px;
+    top: -14px;
+    display: inline-flex;
     align-items: center;
-    justify-content: start;
+    justify-content: flex-end;
+    gap: 4px;
+    height: auto;
+}
+.preview-icons .info-icon {
+    width: 14px;
+    height: 14px;
+    opacity: 0.8;
 }

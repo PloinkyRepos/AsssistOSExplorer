@@ -19,8 +19,127 @@ const DEFAULT_CUSTOM_TYPES = [
     'list'
 ];
 const EXPLORER_AGENT_ID = 'explorer';
-const DOCUMENT_MEDIA_ROOT = 'document-multimedia';
+const DOCUMENT_MEDIA_URL_ROOT = 'document-multimedia';
 const AUDIO_FILE_EXTENSION = '.mp3';
+
+const normalizeFsPath = (value) => (typeof value === 'string' ? value.replace(/\\/g, '/').trim() : '');
+const trimSlashes = (value, { leading = true, trailing = true } = {}) => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+    let result = value;
+    if (trailing) {
+        result = result.replace(/\/+$/, '');
+    }
+    if (leading) {
+        result = result.replace(/^\/+/, '');
+    }
+    return result;
+};
+const splitLines = (value) => (typeof value === 'string'
+    ? value
+        .split(/\r?\n/)
+        .map((line) => line.trim())
+        .filter(Boolean)
+    : []);
+
+const getConfiguredDocumentStorageRoot = () => {
+    const providers = [
+        () => (typeof globalThis !== 'undefined' ? globalThis.DOCUMENT_STORAGE_ROOT : undefined),
+        () => (typeof globalThis !== 'undefined' ? globalThis.AssistOS?.config?.DOCUMENT_STORAGE_ROOT : undefined),
+        () => (typeof globalThis !== 'undefined' ? globalThis.assistOS?.config?.DOCUMENT_STORAGE_ROOT : undefined),
+        () => {
+            if (typeof document === 'undefined') {
+                return undefined;
+            }
+            return document.querySelector?.('meta[name="document-storage-root"]')?.content;
+        },
+        () => (typeof process !== 'undefined' ? process.env?.DOCUMENT_STORAGE_ROOT : undefined)
+    ];
+
+    for (const getValue of providers) {
+        try {
+            const value = getValue();
+            if (typeof value === 'string' && value.trim()) {
+                return trimSlashes(value.trim(), { trailing: true, leading: false });
+            }
+        } catch (error) {
+            console.warn('[assistOS] Failed to evaluate DOCUMENT_STORAGE_ROOT provider:', error);
+        }
+    }
+    return null;
+};
+
+const createDocumentMediaStorageResolver = (callExplorerTool) => {
+    let cachedRoot = null;
+    let inflight = null;
+
+    const resolveWorkspaceRoot = async () => {
+        const response = await callExplorerTool('list_allowed_directories', {});
+        const lines = splitLines(response?.text ?? '');
+        for (const line of lines) {
+            if (/^allowed directories:?$/i.test(line)) {
+                continue;
+            }
+            if (line) {
+                return line;
+            }
+        }
+        return null;
+    };
+
+    const locateMediaDirectory = async (workspaceRoot) => {
+        const response = await callExplorerTool('search_files', { path: '/', pattern: DOCUMENT_MEDIA_URL_ROOT });
+        const normalizedWorkspace = trimSlashes(normalizeFsPath(workspaceRoot), { leading: false, trailing: true });
+        const lines = splitLines(response?.text ?? '');
+        for (const candidate of lines) {
+            const normalizedCandidate = normalizeFsPath(candidate);
+            if (!normalizedCandidate.toLowerCase().endsWith(`/${DOCUMENT_MEDIA_URL_ROOT}`)) {
+                continue;
+            }
+            if (!normalizedCandidate.startsWith(normalizedWorkspace)) {
+                continue;
+            }
+            const relative = trimSlashes(normalizedCandidate.slice(normalizedWorkspace.length), { leading: true, trailing: true });
+            if (relative) {
+                return relative;
+            }
+        }
+        return null;
+    };
+
+    return async () => {
+        if (cachedRoot) {
+            return cachedRoot;
+        }
+        if (inflight) {
+            return inflight;
+        }
+
+        inflight = (async () => {
+            const configuredRoot = getConfiguredDocumentStorageRoot();
+            if (configuredRoot) {
+                return `${configuredRoot}/${DOCUMENT_MEDIA_URL_ROOT}`;
+            }
+            const workspaceRoot = await resolveWorkspaceRoot();
+            if (!workspaceRoot) {
+                throw new Error('Unable to determine workspace root. Set DOCUMENT_STORAGE_ROOT to override.');
+            }
+            const detectedMediaDirectory = await locateMediaDirectory(workspaceRoot);
+            if (!detectedMediaDirectory) {
+                throw new Error(`Unable to locate "${DOCUMENT_MEDIA_URL_ROOT}" directory. Create it or set DOCUMENT_STORAGE_ROOT.`);
+            }
+            return detectedMediaDirectory;
+        })();
+
+        try {
+            cachedRoot = await inflight;
+            return cachedRoot;
+        } finally {
+            inflight = null;
+        }
+    };
+};
 
 const createFontMap = () => ({
     tiny: '12px',
@@ -331,6 +450,7 @@ const buildSpaceModule = (spaceState) => {
     };
 
     const getDocumentContext = () => resolveDocumentContext(spaceState);
+    const getDocumentMediaStorageRoot = createDocumentMediaStorageResolver(callExplorerTool);
 
     const ensureDirectory = async (directoryPath) => {
         await callExplorerTool('create_directory', { path: directoryPath });
@@ -369,7 +489,7 @@ const buildSpaceModule = (spaceState) => {
             if (!context) {
                 return `/${audioId}`;
             }
-            const mediaPath = `${DOCUMENT_MEDIA_ROOT}/${context.folder}/${audioId}${AUDIO_FILE_EXTENSION}`;
+            const mediaPath = `${DOCUMENT_MEDIA_URL_ROOT}/${context.folder}/${audioId}${AUDIO_FILE_EXTENSION}`;
             return `/${mediaPath}`;
         },
         async putAudio(uint8Array) {
@@ -381,7 +501,8 @@ const buildSpaceModule = (spaceState) => {
                 throw new Error('No active document context. Open a document before uploading audio.');
             }
             const mediaId = generateRandomId('audio');
-            const directory = `${DOCUMENT_MEDIA_ROOT}/${context.folder}`;
+            const mediaStorageRoot = await getDocumentMediaStorageRoot();
+            const directory = `${mediaStorageRoot}/${context.folder}`;
             await ensureDirectory(directory);
             const relativePath = `${directory}/${mediaId}${AUDIO_FILE_EXTENSION}`;
             await writeBinaryFile(relativePath, uint8Array);

@@ -83,6 +83,44 @@ function changeCommentIndicator(element, commentMessages) {
         }
     }
 }
+
+function renderInfoIcons(element, info = {}) {
+    const previewIcons = element.querySelector(".preview-icons");
+    if (!previewIcons) {
+        return;
+    }
+    previewIcons.querySelectorAll(".info-icon").forEach((icon) => icon.remove());
+    const icons = [];
+    if (info.media) {
+        icons.push({
+            className: "has-media",
+            src: "./assets/icons/attachment.svg",
+            alt: "media",
+            title: "Media attachments"
+        });
+    }
+    if (info.variables) {
+        icons.push({
+            className: "has-variables",
+            src: "./assets/icons/variable.svg",
+            alt: "variables",
+            title: "Variables"
+        });
+    }
+    if (info.commands) {
+        icons.push({
+            className: "has-commands",
+            src: "./assets/icons/script.svg",
+            alt: "commands",
+            title: "SOPLang commands"
+        });
+    }
+    for (let i = icons.length - 1; i >= 0; i--) {
+        const icon = icons[i];
+        previewIcons.insertAdjacentHTML("afterbegin",
+            `<img class="info-icon ${icon.className}" src="${icon.src}" alt="${icon.alt}" title="${icon.title}">`);
+    }
+}
 function displayCurrentStatus(element, comments, level) {
     let previewIcons = element.querySelector(".preview-icons");
     if(comments.status === "error"){
@@ -113,5 +151,6 @@ export default {
     selectItem,
     changeCommentIndicator,
     displayCurrentStatus,
-    changeStatusIcon
+    changeStatusIcon,
+    renderInfoIcons
 };
