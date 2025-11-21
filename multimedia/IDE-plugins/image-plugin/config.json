@@ -1,0 +1,10 @@
+{
+    "component": "image-plugin",
+    "location": ["chapter"],
+    "tooltip": "Image Plugin",
+    "icon": "/multimedia/IDE-plugins/assets/icons/image-plugin.svg",
+    "presenter": "ImagePlugin",
+    "type": "modal",
+    "autoPin": false,
+    "dependencies": []
+}

@@ -171,6 +171,23 @@ const MEDIA_ATTACHMENT_TYPES = {
             }
             return model;
         }
+    },
+    image: {
+        kind: 'image',
+        stateKey: 'backgroundImage',
+        collectionKey: 'image',
+        modelFactory: (payload) => ({
+            id: payload.id ?? '',
+            url: payload.path,
+            loop: Boolean(payload.loop),
+            duration: toFiniteNumber(payload.duration, payload.end ?? 0),
+            start: toFiniteNumber(payload.start, 0),
+            end: toFiniteNumber(payload.end, payload.duration ?? 0),
+            width: toFiniteNumber(payload.width, 0),
+            height: toFiniteNumber(payload.height, 0),
+            size: toFiniteNumber(payload.size, 0),
+            name: payload.name
+        })
     }
 };
 
@@ -234,12 +251,15 @@ const updateChapterMediaState = (chapter) => {
     }
     const audioAttachments = collectMediaAttachments(chapter.commands ?? '', 'audio');
     const videoAttachments = collectMediaAttachments(chapter.commands ?? '', 'video');
+    const imageAttachments = collectMediaAttachments(chapter.commands ?? '', 'image');
     chapter.mediaAttachments = {
         audio: audioAttachments,
-        video: videoAttachments
+        video: videoAttachments,
+        image: imageAttachments
     };
     chapter.backgroundSound = audioAttachments[0] ?? null;
     chapter.backgroundVideo = videoAttachments[0] ?? null;
+    chapter.backgroundImage = imageAttachments[0] ?? null;
 };
 
 const generateMediaCommandIdentifier = (type = '') => {
@@ -373,6 +393,15 @@ const normalizeAttachmentPayload = (payload = {}) => {
     } else if (normalized.duration !== undefined) {
         normalized.end = normalized.duration;
     }
+    if (payload.width !== undefined) {
+        normalized.width = toFiniteNumber(payload.width, 0);
+    }
+    if (payload.height !== undefined) {
+        normalized.height = toFiniteNumber(payload.height, 0);
+    }
+    if (payload.size !== undefined) {
+        normalized.size = toFiniteNumber(payload.size, 0);
+    }
     const name = typeof payload.name === 'string' && payload.name.trim()
         ? payload.name.trim()
         : (typeof payload.filename === 'string' && payload.filename.trim() ? payload.filename.trim() : null);
@@ -483,6 +512,9 @@ const appendAttachmentCommand = (commandsBlock = '', type, payload = null, optio
     if (normalized.loop !== undefined) pairs.push(['loop', normalized.loop]);
     if (normalized.start !== undefined) pairs.push(['start', normalized.start]);
     if (normalized.end !== undefined) pairs.push(['end', normalized.end]);
+    if (normalized.width !== undefined) pairs.push(['width', normalized.width]);
+    if (normalized.height !== undefined) pairs.push(['height', normalized.height]);
+    if (normalized.size !== undefined) pairs.push(['size', normalized.size]);
 
     const formatValue = (value) => {
         if (typeof value === 'number' && Number.isFinite(value)) {
@@ -1373,11 +1405,17 @@ const documentModule = {
     async setChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
         return setChapterMediaAttachment('audio', documentIdOrPath, chapterId, payload);
     },
+    async setChapterImageAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
+        return setChapterMediaAttachment('image', documentIdOrPath, chapterId, payload);
+    },
     async setChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
         return setChapterMediaAttachment('video', documentIdOrPath, chapterId, payload);
     },
     async deleteChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('audio', documentIdOrPath, chapterId, identifier);
+    },
+    async deleteChapterImageAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
+        return deleteChapterMediaAttachment('image', documentIdOrPath, chapterId, identifier);
     },
     async deleteChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('video', documentIdOrPath, chapterId, identifier);

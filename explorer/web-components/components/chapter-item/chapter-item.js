@@ -343,6 +343,9 @@ export class ChapterItem {
         const videoAttachments = Array.isArray(this.chapter.mediaAttachments?.video)
             ? this.chapter.mediaAttachments.video.length
             : 0;
+        const imageAttachments = Array.isArray(this.chapter.mediaAttachments?.image)
+            ? this.chapter.mediaAttachments.image.length
+            : 0;
 
         if (audioAttachments > 0) {
             count += audioAttachments;
@@ -353,6 +356,12 @@ export class ChapterItem {
         if (videoAttachments > 0) {
             count += videoAttachments;
         } else if (this.chapter.backgroundVideo) {
+            count += 1;
+        }
+
+        if (imageAttachments > 0) {
+            count += imageAttachments;
+        } else if (this.chapter.backgroundImage) {
             count += 1;
         }
 

@@ -207,6 +207,11 @@
             "presenterClassName": "AudioPlugin"
         },
         {
+            "name": "image-plugin",
+            "type": "modals",
+            "presenterClassName": "ImagePlugin"
+        },
+        {
             "name": "video-plugin",
             "type": "modals",
             "presenterClassName": "VideoPlugin"

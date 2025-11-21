@@ -1,5 +1,4 @@
 import { uploadBlobFile } from '../utils/blobUpload.js';
-const spaceModule = assistOS.loadModule("space");
 const documentModule = assistOS.loadModule("document");
 
 function getContext(element) {
@@ -19,7 +18,11 @@ export class VideoPlugin {
         const context = getContext(this.element);
         this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
         const documentViewPage = document.querySelector("document-view-page");
-        this._document = documentViewPage.webSkelPresenter._document;
+        this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
+        if (!this.documentPresenter || !this.documentPresenter._document) {
+            throw new Error("Document context is required for video plugin.");
+        }
+        this._document = this.documentPresenter._document;
         this.chapter = this._document.chapters.find((chapter) => chapter.id === this.chapterId);
         if (!Array.isArray(this.chapter.variables)) {
             this.chapter.variables = [];
@@ -33,14 +36,15 @@ export class VideoPlugin {
     async afterRender() {
         this.fileInput = this.element.querySelector(".file-input");
         this.resetFileInputListener();
-        await this.populateExistingVideo();
+        this.videoListElement = this.element.querySelector('.video-list');
+        await this.populateExistingVideos();
     }
 
     resetFileInputListener() {
-        this.fileInput.addEventListener("change", this.uploadBackgroundVideo.bind(this), { once: true });
+        this.fileInput.addEventListener("change", this.uploadVideoAttachment.bind(this), { once: true });
     }
 
-    uploadBackgroundVideo(event) {
+    uploadVideoAttachment(event) {
         const file = event.target.files[0];
         const maxFileSize = 500 * 1024 * 1024;
         if (!file) {
@@ -68,10 +72,12 @@ export class VideoPlugin {
                         end: videoElement.duration,
                         duration: videoElement.duration,
                         volume: 100,
-                        path: uploadResult.downloadUrl
+                        path: uploadResult.downloadUrl,
+                        name: uploadResult.filename || file.name
                     };
                     await this.persistVideoAttachment(metadata);
-                    await this.populateExistingVideo();
+                    await this.invalidateCompiledVideo();
+                    await this.populateExistingVideos();
                     this.resetFileInputListener();
                     assistOS.showToast("Video saved.", "success");
                 } catch (error) {
@@ -95,44 +101,6 @@ export class VideoPlugin {
         this.fileInput.click();
     }
 
-    async saveVideoChanges() {
-        const loopInput = this.element.querySelector("#video-loop");
-        const volumeInput = this.element.querySelector("#video-volume");
-        const videoData = this.chapter.backgroundVideo;
-        if (!videoData) {
-            return;
-        }
-        const payload = {
-            ...videoData,
-            path: videoData.url || videoData.path || "",
-            loop: loopInput.checked,
-            volume: parseFloat(volumeInput.value)
-        };
-        try {
-            await this.persistVideoAttachment(payload);
-            await this.populateExistingVideo();
-            assistOS.showToast("Video updated.", "success");
-        } catch (error) {
-            console.error("Failed to update video", error);
-            assistOS.showToast("Failed to update video.", "error");
-        }
-    }
-
-    async deleteBackgroundVideo() {
-        if (!this.chapter.backgroundVideo) {
-            return;
-        }
-        try {
-            await documentModule.setChapterVideoAttachment(assistOS.space.id, this._document.id, this.chapter.id, null);
-            delete this.chapter.backgroundVideo;
-            await this.populateExistingVideo();
-            assistOS.showToast("Video removed.", "info");
-        } catch (error) {
-            console.error("Failed to delete video", error);
-            assistOS.showToast("Failed to delete video.", "error");
-        }
-    }
-
     async closeModal() {
         const chapterPresenter = this.getChapterPresenter();
         if (chapterPresenter) {
@@ -141,6 +109,7 @@ export class VideoPlugin {
             this.resetPluginButtonState();
         }
         assistOS.UI.closeModal(this.element);
+        this.requestChapterRerender();
     }
 
     resetPluginButtonState() {
@@ -150,38 +119,130 @@ export class VideoPlugin {
         }
     }
 
-    async populateExistingVideo() {
-        const videoData = this.getBackgroundVideoData();
-        const videoConfigs = this.element.querySelector(".video-configs");
-        const videoElement = this.element.querySelector(".video-plugin__player");
-        const loopInput = this.element.querySelector("#video-loop");
-        const volumeInput = this.element.querySelector("#video-volume");
-
-        if (!videoData) {
-            videoConfigs.classList.add("hidden");
-            videoElement.classList.add("hidden");
-            return;
-        }
-
-        videoConfigs.classList.remove("hidden");
-        videoElement.classList.remove("hidden");
-        videoElement.src = videoData.url || await spaceModule.getVideoURL(videoData.id);
-        videoElement.load();
-        videoElement.loop = videoData.loop;
-        loopInput.checked = videoData.loop;
-        const volumeValue = videoData.volume ?? 100;
-        volumeInput.value = volumeValue;
-        videoElement.volume = volumeValue / 100;
-        volumeInput.oninput = () => {
-            videoElement.volume = parseFloat(volumeInput.value || '0') / 100;
-        };
+    async populateExistingVideos() {
+        await this.renderVideoList();
+        this.refreshChapterPreviewIcons();
     }
 
-    getBackgroundVideoData() {
-        if (this.chapter.backgroundVideo) {
-            return this.chapter.backgroundVideo;
+    getVideoAttachments() {
+        if (Array.isArray(this.chapter.mediaAttachments?.video) && this.chapter.mediaAttachments.video.length) {
+            return this.chapter.mediaAttachments.video;
         }
-        return null;
+        return this.chapter.backgroundVideo ? [this.chapter.backgroundVideo] : [];
+    }
+
+    async renderVideoList() {
+        const container = this.videoListElement;
+        if (!container) {
+            return;
+        }
+        const attachments = this.getVideoAttachments();
+        if (!attachments.length) {
+            container.innerHTML = '<div class="video-empty-state">No video tracks yet.</div>';
+            return;
+        }
+        container.innerHTML = attachments.map((item, index) => this.renderVideoItemTemplate(item, index)).join('');
+    }
+
+    renderVideoItemTemplate(item, index) {
+        const sanitize = (value) => typeof assistOS?.UI?.sanitize === 'function' ? assistOS.UI.sanitize(value) : value;
+        const escapeAttr = (value) => {
+            if (value === undefined || value === null) {
+                return '';
+            }
+            return String(value).replace(/"/g, '&quot;');
+        };
+        const title = sanitize(item.name || item.filename || item.id || `Video ${index + 1}`);
+        const volume = Number.isFinite(item.volume) ? item.volume : 100;
+        const start = Number.isFinite(item.start) ? item.start : 0;
+        const endValue = Number.isFinite(item.end) ? item.end : (Number.isFinite(item.duration) ? item.duration : 0);
+        const url = sanitize(item.url || item.path || '');
+        const durationLabel = Number.isFinite(item.duration) ? `${item.duration.toFixed(2)}s` : '';
+        const identifier = typeof item.identifier === 'string' ? item.identifier : '';
+        const identifierAttr = escapeAttr(identifier);
+        const saveAction = identifier ? `saveVideoItem ${identifier}` : 'saveVideoItem';
+        const deleteAction = identifier ? `deleteVideoItem ${identifier}` : 'deleteVideoItem';
+        const saveActionAttr = escapeAttr(saveAction);
+        const deleteActionAttr = escapeAttr(deleteAction);
+        return `
+        <div class="video-item" data-identifier="${identifierAttr}">
+            <div class="video-item-header">
+                <span>${title}</span>
+                <span>${durationLabel}</span>
+            </div>
+            <video controls preload="metadata" src="${url}"></video>
+            <div class="video-item-controls">
+                <label>Volume
+                    <input type="number" min="0" max="100" step="1" data-field="volume" value="${volume}">
+                </label>
+                <label>Start (s)
+                    <input type="number" min="0" step="0.1" data-field="start" value="${start}">
+                </label>
+                <label>End (s)
+                    <input type="number" min="0" step="0.1" data-field="end" value="${endValue}">
+                </label>
+                <label>Loop
+                    <input type="checkbox" data-field="loop" ${item.loop ? 'checked' : ''}>
+                </label>
+            </div>
+            <div class="video-item-actions">
+                <button class="general-button" type="button" data-local-action="${saveActionAttr}">Save</button>
+                <button class="general-button danger" type="button" data-local-action="${deleteActionAttr}">Delete</button>
+            </div>
+        </div>`;
+    }
+
+    async saveVideoItem(triggerElement, identifier) {
+        const container = triggerElement?.closest('.video-item');
+        const targetIdentifier = identifier || container?.dataset?.identifier;
+        if (!container || !targetIdentifier) {
+            return;
+        }
+        const attachments = this.getVideoAttachments();
+        const current = attachments.find((attachment) => attachment.identifier === targetIdentifier);
+        if (!current) {
+            return;
+        }
+        const volumeInput = container.querySelector('[data-field="volume"]');
+        const startInput = container.querySelector('[data-field="start"]');
+        const endInput = container.querySelector('[data-field="end"]');
+        const loopInput = container.querySelector('[data-field="loop"]');
+        const payload = {
+            identifier: targetIdentifier,
+            id: current.id,
+            path: current.url || current.path || '',
+            name: current.name || current.filename,
+            volume: Number.parseFloat(volumeInput?.value ?? '100'),
+            start: Number.parseFloat(startInput?.value ?? '0'),
+            end: Number.parseFloat(endInput?.value ?? '0'),
+            loop: Boolean(loopInput?.checked)
+        };
+        try {
+            await this.persistVideoAttachment(payload);
+            await this.invalidateCompiledVideo();
+            await this.populateExistingVideos();
+            assistOS.showToast('Video updated.', 'success');
+        } catch (error) {
+            console.error('Failed to update video track', error);
+            assistOS.showToast('Failed to update video.', 'error');
+        }
+    }
+
+    async deleteVideoItem(triggerElement, identifier) {
+        const container = triggerElement?.closest('.video-item');
+        const targetIdentifier = identifier || container?.dataset?.identifier;
+        if (!targetIdentifier) {
+            return;
+        }
+        try {
+            await documentModule.deleteChapterVideoAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            await this.invalidateCompiledVideo();
+            await this.populateExistingVideos();
+            assistOS.showToast('Video removed.', 'info');
+        } catch (error) {
+            console.error('Failed to delete video', error);
+            assistOS.showToast('Failed to delete video.', 'error');
+        }
     }
 
     async persistVideoAttachment(payload) {
@@ -199,7 +260,17 @@ export class VideoPlugin {
     }
 
     ensureBackgroundVideoHydrated() {
-        // backgroundVideo is hydrated by the document module; no additional work required here
+        this.chapter.mediaAttachments = this.chapter.mediaAttachments || {};
+        if (!Array.isArray(this.chapter.mediaAttachments.video)) {
+            this.chapter.mediaAttachments.video = [];
+        }
+    }
+
+    async invalidateCompiledVideo() {
+        if (this.chapter.commands?.compileVideo) {
+            delete this.chapter.commands.compileVideo;
+            await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
+        }
     }
 
     getChapterPresenter() {
@@ -213,5 +284,21 @@ export class VideoPlugin {
             return null;
         }
         return chapterElement.querySelector(".icon-container.video-plugin");
+    }
+
+    refreshChapterPreviewIcons() {
+        const chapterPresenter = this.getChapterPresenter();
+        if (chapterPresenter?.renderInfoIcons) {
+            chapterPresenter.renderInfoIcons();
+        }
+    }
+
+    requestChapterRerender() {
+        const chapterPresenter = this.getChapterPresenter();
+        if (chapterPresenter?.invalidate) {
+            chapterPresenter.invalidate();
+        } else if (this.documentPresenter?.invalidate) {
+            this.documentPresenter.invalidate();
+        }
     }
 }

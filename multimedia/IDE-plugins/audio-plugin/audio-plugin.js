@@ -18,7 +18,11 @@ export class AudioPlugin {
         const context = getContext(this.element);
         this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
         const documentViewPage = document.querySelector("document-view-page");
-        this._document = documentViewPage.webSkelPresenter._document;
+        this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
+        if (!this.documentPresenter || !this.documentPresenter._document) {
+            throw new Error("Document context is required for audio plugin.");
+        }
+        this._document = this.documentPresenter._document;
         this.chapter = this._document.chapters.find((chapter) => chapter.id === this.chapterId);
         if (!Array.isArray(this.chapter.variables)) {
             this.chapter.variables = [];
@@ -105,6 +109,7 @@ export class AudioPlugin {
             this.resetPluginButtonState();
         }
         assistOS.UI.closeModal(this.element);
+        this.requestChapterRerender();
     }
 
     resetPluginButtonState() {
@@ -123,6 +128,7 @@ export class AudioPlugin {
 
     async populateExistingAudio() {
         await this.renderAudioList();
+        this.refreshChapterPreviewIcons();
     }
 
     getAudioAttachments() {
@@ -278,5 +284,21 @@ export class AudioPlugin {
             return null;
         }
         return chapterElement.querySelector(".icon-container.audio-plugin");
-}
+    }
+
+    refreshChapterPreviewIcons() {
+        const chapterPresenter = this.getChapterPresenter();
+        if (chapterPresenter?.renderInfoIcons) {
+            chapterPresenter.renderInfoIcons();
+        }
+    }
+
+    requestChapterRerender() {
+        const chapterPresenter = this.getChapterPresenter();
+        if (chapterPresenter?.invalidate) {
+            chapterPresenter.invalidate();
+        } else if (this.documentPresenter?.invalidate) {
+            this.documentPresenter.invalidate();
+        }
+    }
 }
