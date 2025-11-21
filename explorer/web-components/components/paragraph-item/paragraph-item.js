@@ -273,22 +273,13 @@ export class ParagraphItem {
         if (Array.isArray(this.paragraph.variables)) {
             count += this.paragraph.variables.filter((variable) => isMediaVariable(variable)).length;
         }
-        const runtimeCommands = this.paragraph.commands;
-        if (runtimeCommands && typeof runtimeCommands === "object") {
-            ["audio", "video", "image", "effects"].forEach((key) => {
-                const value = runtimeCommands[key];
-                if (!value) {
-                    return;
-                }
-                if (Array.isArray(value)) {
-                    count += value.length;
-                } else if (typeof value === "object") {
-                    count += Object.keys(value).length || 1;
-                } else {
-                    count += 1;
-                }
-            });
-        }
+        const mediaAttachments = this.paragraph.mediaAttachments || {};
+        ["audio", "video", "image"].forEach((key) => {
+            const list = mediaAttachments[key];
+            if (Array.isArray(list)) {
+                count += list.length;
+            }
+        });
         return count;
     }
 

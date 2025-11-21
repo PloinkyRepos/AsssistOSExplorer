@@ -17,6 +17,7 @@ export class VideoPlugin {
         this.invalidate = invalidate;
         const context = getContext(this.element);
         this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
+        this.paragraphId = context.paragraphId || this.element.getAttribute("data-paragraph-id");
         this.hostSelector = context.hostSelector || "";
         const documentViewPage = document.querySelector("document-view-page");
         this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
@@ -25,10 +26,24 @@ export class VideoPlugin {
         }
         this._document = this.documentPresenter._document;
         this.chapter = this._document.chapters.find((chapter) => chapter.id === this.chapterId);
+        if (!this.chapter) {
+            throw new Error(`Chapter ${this.chapterId} not found.`);
+        }
+        if (this.paragraphId) {
+            this.isParagraphContext = true;
+            this.paragraph = this.chapter.paragraphs?.find((paragraph) => paragraph.id === this.paragraphId) || null;
+            if (!this.paragraph) {
+                throw new Error(`Paragraph ${this.paragraphId} not found.`);
+            }
+        } else {
+            this.isParagraphContext = false;
+        }
         if (!Array.isArray(this.chapter.variables)) {
             this.chapter.variables = [];
         }
-        this.ensureBackgroundVideoHydrated();
+        if (!this.isParagraphContext) {
+            this.ensureBackgroundVideoHydrated();
+        }
         this.invalidate();
     }
 
@@ -126,6 +141,12 @@ export class VideoPlugin {
     }
 
     getVideoAttachments() {
+        if (this.isParagraphContext) {
+            if (Array.isArray(this.paragraph?.mediaAttachments?.video) && this.paragraph.mediaAttachments.video.length) {
+                return this.paragraph.mediaAttachments.video;
+            }
+            return [];
+        }
         if (Array.isArray(this.chapter.mediaAttachments?.video) && this.chapter.mediaAttachments.video.length) {
             return this.chapter.mediaAttachments.video;
         }
@@ -236,7 +257,17 @@ export class VideoPlugin {
             return;
         }
         try {
-            await documentModule.deleteChapterVideoAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            if (this.isParagraphContext) {
+                await documentModule.deleteParagraphVideoAttachment(
+                    assistOS.space.id,
+                    this._document.id,
+                    this.chapter.id,
+                    this.paragraph.id,
+                    targetIdentifier
+                );
+            } else {
+                await documentModule.deleteChapterVideoAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            }
             await this.invalidateCompiledVideo();
             await this.populateExistingVideos();
             assistOS.showToast('Video removed.', 'info');
@@ -247,17 +278,21 @@ export class VideoPlugin {
     }
 
     async persistVideoAttachment(payload) {
-        const backgroundVideo = await documentModule.setChapterVideoAttachment(
+        if (this.isParagraphContext) {
+            return documentModule.setParagraphVideoAttachment(
+                assistOS.space.id,
+                this._document.id,
+                this.chapter.id,
+                this.paragraph.id,
+                payload
+            );
+        }
+        return documentModule.setChapterVideoAttachment(
             assistOS.space.id,
             this._document.id,
             this.chapter.id,
             payload
         );
-        if (backgroundVideo) {
-            this.chapter.backgroundVideo = backgroundVideo;
-        } else {
-            delete this.chapter.backgroundVideo;
-        }
     }
 
     ensureBackgroundVideoHydrated() {
@@ -268,6 +303,9 @@ export class VideoPlugin {
     }
 
     async invalidateCompiledVideo() {
+        if (this.isParagraphContext) {
+            return;
+        }
         if (this.chapter.commands?.compileVideo) {
             delete this.chapter.commands.compileVideo;
             await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
@@ -304,5 +342,4 @@ export class VideoPlugin {
     getHostElement() {
         return this.hostSelector ? document.querySelector(this.hostSelector) : null;
     }
-}
 }

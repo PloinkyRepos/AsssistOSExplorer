@@ -1502,11 +1502,23 @@ const documentModule = {
     async setParagraphAudioAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, payload) {
         return setParagraphMediaAttachment('audio', documentIdOrPath, chapterId, paragraphId, payload);
     },
+    async setParagraphImageAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, payload) {
+        return setParagraphMediaAttachment('image', documentIdOrPath, chapterId, paragraphId, payload);
+    },
+    async setParagraphVideoAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, payload) {
+        return setParagraphMediaAttachment('video', documentIdOrPath, chapterId, paragraphId, payload);
+    },
     async deleteChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('audio', documentIdOrPath, chapterId, identifier);
     },
     async deleteParagraphAudioAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, identifier) {
         return deleteParagraphMediaAttachment('audio', documentIdOrPath, chapterId, paragraphId, identifier);
+    },
+    async deleteParagraphImageAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, identifier) {
+        return deleteParagraphMediaAttachment('image', documentIdOrPath, chapterId, paragraphId, identifier);
+    },
+    async deleteParagraphVideoAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, identifier) {
+        return deleteParagraphMediaAttachment('video', documentIdOrPath, chapterId, paragraphId, identifier);
     },
     async deleteChapterImageAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('image', documentIdOrPath, chapterId, identifier);

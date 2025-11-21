@@ -510,7 +510,7 @@ html[theme="dark"] input.document-title {
 .preview-icons {
     position: absolute;
     right: 4px;
-    top: -14px;
+    top: -8px;
     display: inline-flex;
     align-items: center;
     justify-content: flex-end;
@@ -520,7 +520,6 @@ html[theme="dark"] input.document-title {
 .preview-icons .info-icon-container {
     display: inline-flex;
     align-items: center;
-    gap: 4px;
 }
 .preview-icons .info-icon {
     width: 14px;
@@ -533,6 +532,6 @@ html[theme="dark"] input.document-title {
     line-height: 1;
     color: #2f2f2f;
     background: #f1f3f8;
-    padding: 2px 5px;
+    padding: 2px 5px 2px 1px;
     border-radius: 999px;
 }

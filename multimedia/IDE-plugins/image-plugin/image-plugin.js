@@ -27,6 +27,7 @@ export class ImagePlugin {
         this.invalidate = invalidate;
         const context = getContext(this.element);
         this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
+        this.paragraphId = context.paragraphId || this.element.getAttribute("data-paragraph-id");
         this.hostSelector = context.hostSelector || "";
         this.hostType = context.hostType || "";
         const documentViewPage = document.querySelector("document-view-page");
@@ -39,7 +40,16 @@ export class ImagePlugin {
         if (!Array.isArray(this.chapter.variables)) {
             this.chapter.variables = [];
         }
-        this.ensureBackgroundImageHydrated();
+        if (this.paragraphId) {
+            this.isParagraphContext = true;
+            this.paragraph = this.chapter.paragraphs?.find((paragraph) => paragraph.id === this.paragraphId) || null;
+            if (!this.paragraph) {
+                throw new Error(`Paragraph ${this.paragraphId} not found.`);
+            }
+        } else {
+            this.isParagraphContext = false;
+            this.ensureBackgroundImageHydrated();
+        }
         this.invalidate();
     }
 
@@ -130,6 +140,9 @@ export class ImagePlugin {
     }
 
     async invalidateCompiledVideo() {
+        if (this.isParagraphContext) {
+            return;
+        }
         if (this.chapter.commands.compileVideo) {
             delete this.chapter.commands.compileVideo;
             await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
@@ -142,6 +155,12 @@ export class ImagePlugin {
     }
 
     getImageAttachments() {
+        if (this.isParagraphContext) {
+            if (Array.isArray(this.paragraph?.mediaAttachments?.image) && this.paragraph.mediaAttachments.image.length) {
+                return this.paragraph.mediaAttachments.image;
+            }
+            return [];
+        }
         if (Array.isArray(this.chapter.mediaAttachments?.image) && this.chapter.mediaAttachments.image.length) {
             return this.chapter.mediaAttachments.image;
         }
@@ -203,7 +222,17 @@ export class ImagePlugin {
             return;
         }
         try {
-            await documentModule.deleteChapterImageAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            if (this.isParagraphContext) {
+                await documentModule.deleteParagraphImageAttachment(
+                    assistOS.space.id,
+                    this._document.id,
+                    this.chapter.id,
+                    this.paragraph.id,
+                    targetIdentifier
+                );
+            } else {
+                await documentModule.deleteChapterImageAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            }
             await this.invalidateCompiledVideo();
             await this.populateExistingImages();
             assistOS.showToast('Image removed.', 'info');
@@ -214,17 +243,21 @@ export class ImagePlugin {
     }
 
     async persistImageAttachment(payload) {
-        const attachment = await documentModule.setChapterImageAttachment(
+        if (this.isParagraphContext) {
+            return documentModule.setParagraphImageAttachment(
+                assistOS.space.id,
+                this._document.id,
+                this.chapter.id,
+                this.paragraph.id,
+                payload
+            );
+        }
+        return documentModule.setChapterImageAttachment(
             assistOS.space.id,
             this._document.id,
             this.chapter.id,
             payload
         );
-        if (attachment) {
-            this.chapter.backgroundImage = attachment;
-        } else {
-            delete this.chapter.backgroundImage;
-        }
     }
 
     ensureBackgroundImageHydrated() {
