@@ -1,0 +1,124 @@
+@import url("https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;700&display=swap");
+
+show-error-modal {
+    color: black !important;
+}
+
+#show-error-model-content-header,
+#detailed-error-message {
+    color: black !important;
+}
+
+:host {
+    font-family: 'Poppins', sans-serif;
+}
+
+dialog {
+    padding: 0;
+    border: none;
+}
+
+#show-error-modal {
+    width: 500px;
+}
+
+#show-error-modal-header {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    margin-top: 30px;
+    border-bottom: 1px solid var(--error-modal-border);
+    padding-bottom: 10px;
+}
+
+#error-message {
+    font-family: "DM Sans", sans-serif;
+    font-size: 26px;
+    font-weight: 700;
+    line-height: 39px;
+    letter-spacing: 0;
+    text-align: center;
+    color: var(--blue-black);
+}
+
+#show-error-model-content {
+    margin: 20px 40px;
+    text-align: center;
+}
+
+#show-error-model-content-header {
+    font-family: Poppins, sans-serif;
+    font-size: 12px;
+    font-weight: 400;
+    line-height: 21px;
+    letter-spacing: 0;
+    text-align: justify;
+    margin-bottom: 20px;
+}
+
+#detailed-error-message {
+    display: none;
+    margin-top: 10px;
+    margin-bottom: 10px;
+    overflow-y: auto;
+    max-height: 150px;
+    border: 1px solid var(--error-modal-border);
+    padding: 10px;
+    border-radius: 4px;
+    text-align: justify;
+}
+
+#details-button,
+#ok-button {
+    font-weight: 600;
+    padding: 8px 15px;
+    margin: 5px;
+    border: 1px solid;
+    border-radius: 16px;
+    cursor: pointer;
+    display: inline-flex;
+    text-align: center;
+    color: var(--white-text);
+}
+
+#ok-button {
+    background: var(--strong-blue);
+}
+
+#details-button {
+    color: var(--strong-blue);
+    background-color: var(--white-text);
+    border-color: var(--strong-blue);
+}
+
+.button {
+    width: 163px;
+    height: 37px;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+}
+
+@media (max-width: 500px) {
+    #show-error-modal {
+        width: 100%;
+    }
+
+    #error-message {
+        font-size: 22px;
+        line-height: 34px;
+    }
+
+    #show-error-model-content-header {
+        font-size: 12px;
+        line-height: 24px;
+        text-align: left;
+    }
+
+    #details-button,
+    #ok-button {
+        margin: 10px 0;
+    }
+}

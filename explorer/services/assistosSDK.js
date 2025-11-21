@@ -21,6 +21,7 @@ const DEFAULT_CUSTOM_TYPES = [
 const EXPLORER_AGENT_ID = 'explorer';
 const DOCUMENT_MEDIA_URL_ROOT = 'document-multimedia';
 const AUDIO_FILE_EXTENSION = '.mp3';
+const VIDEO_FILE_EXTENSION = '.mp4';
 
 const normalizeFsPath = (value) => (typeof value === 'string' ? value.replace(/\\/g, '/').trim() : '');
 const trimSlashes = (value, { leading = true, trailing = true } = {}) => {
@@ -505,6 +506,33 @@ const buildSpaceModule = (spaceState) => {
             const directory = `${mediaStorageRoot}/${context.folder}`;
             await ensureDirectory(directory);
             const relativePath = `${directory}/${mediaId}${AUDIO_FILE_EXTENSION}`;
+            await writeBinaryFile(relativePath, uint8Array);
+            return mediaId;
+        },
+        async getVideoURL(videoId) {
+            if (!videoId) {
+                return '';
+            }
+            const context = getDocumentContext();
+            if (!context) {
+                return `/${videoId}`;
+            }
+            const mediaPath = `${DOCUMENT_MEDIA_URL_ROOT}/${context.folder}/${videoId}${VIDEO_FILE_EXTENSION}`;
+            return `/${mediaPath}`;
+        },
+        async putVideo(uint8Array) {
+            if (!(uint8Array instanceof Uint8Array)) {
+                throw new Error('Video payload must be a Uint8Array.');
+            }
+            const context = getDocumentContext();
+            if (!context) {
+                throw new Error('No active document context. Open a document before uploading video.');
+            }
+            const mediaId = generateRandomId('video');
+            const mediaStorageRoot = await getDocumentMediaStorageRoot();
+            const directory = `${mediaStorageRoot}/${context.folder}`;
+            await ensureDirectory(directory);
+            const relativePath = `${directory}/${mediaId}${VIDEO_FILE_EXTENSION}`;
             await writeBinaryFile(relativePath, uint8Array);
             return mediaId;
         },

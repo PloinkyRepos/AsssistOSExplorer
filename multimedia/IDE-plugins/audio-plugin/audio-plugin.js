@@ -1,3 +1,4 @@
+import { uploadBlobFile } from '../utils/blobUpload.js';
 const spaceModule = assistOS.loadModule("space");
 const documentModule = assistOS.loadModule("document");
 
@@ -11,7 +12,7 @@ function getContext(element) {
     }
 }
 
-export class ChapterAudio {
+export class AudioPlugin {
     constructor(element, invalidate) {
         this.element = element;
         this.invalidate = invalidate;
@@ -23,7 +24,7 @@ export class ChapterAudio {
         if (!Array.isArray(this.chapter.variables)) {
             this.chapter.variables = [];
         }
-        this.chapter.backgroundSound = this.buildBackgroundSoundFromVariable(this.getAudioVariable());
+        this.ensureBackgroundSoundHydrated();
         this.invalidate();
     }
 
@@ -48,30 +49,46 @@ export class ChapterAudio {
         if (file.size > maxFileSize) {
             return showApplicationError("The file is too large.", "Maximum file size is 100MB.", "");
         }
-        const reader = new FileReader();
-        reader.onload = async (e) => {
-            const uint8Array = new Uint8Array(e.target.result);
-            const audioId = await spaceModule.putAudio(uint8Array);
-            const audioPlayer = new Audio();
-            audioPlayer.addEventListener("loadedmetadata", async () => {
-                const metadata = {
-                    id: audioId,
-                    volume: 50,
-                    duration: audioPlayer.duration,
-                    loop: false,
-                    start: 0,
-                    end: audioPlayer.duration
-                };
-                const audioUrl = await spaceModule.getAudioURL(audioId);
-                await this.persistAudioVariable(audioUrl, metadata);
-                await this.invalidateCompiledVideo();
-                await this.populateExistingAudio();
-                this.resetFileInputListener();
-                assistOS.showToast("Chapter audio saved.", "success");
-            });
-            audioPlayer.src = URL.createObjectURL(file);
+        const handleError = (error) => {
+            console.error("Failed to upload audio", error);
+            assistOS.showToast("Failed to upload audio.", "error");
+            this.resetFileInputListener();
         };
-        reader.readAsArrayBuffer(file);
+        try {
+            const uploadPromise = uploadBlobFile(file);
+            const audioPlayer = new Audio();
+            const objectUrl = URL.createObjectURL(file);
+            audioPlayer.addEventListener("loadedmetadata", async () => {
+                try {
+                    const uploadResult = await uploadPromise;
+                    const metadata = {
+                        id: uploadResult.id ?? uploadResult.filename ?? `audio-${Date.now()}`,
+                        volume: 50,
+                        duration: audioPlayer.duration,
+                        loop: false,
+                        start: 0,
+                        end: audioPlayer.duration,
+                        path: uploadResult.downloadUrl
+                    };
+                    await this.persistAudioAttachment(metadata);
+                    await this.invalidateCompiledVideo();
+                    await this.populateExistingAudio();
+                    this.resetFileInputListener();
+                    assistOS.showToast("Audio saved.", "success");
+                } catch (error) {
+                    handleError(error);
+                } finally {
+                    URL.revokeObjectURL(objectUrl);
+                }
+            });
+            audioPlayer.addEventListener("error", () => {
+                URL.revokeObjectURL(objectUrl);
+                handleError(new Error("Unable to read audio metadata."));
+            });
+            audioPlayer.src = objectUrl;
+        } catch (error) {
+            handleError(error);
+        }
         this.fileInput.value = "";
     }
 
@@ -82,32 +99,41 @@ export class ChapterAudio {
     async saveBackgroundSoundChanges() {
         const loopInput = this.element.querySelector("#loop");
         const volumeInput = this.element.querySelector("#volume");
-        const audioVar = this.getAudioVariable();
-        if (!audioVar || !audioVar.options) {
+        const audioData = this.chapter.backgroundSound;
+        if (!audioData) {
             return;
         }
-        const metadata = {
-            ...audioVar.options,
+        const payload = {
+            ...audioData,
+            path: audioData.url || audioData.path || "",
             loop: loopInput.checked,
             volume: parseFloat(volumeInput.value)
         };
-        await this.persistAudioVariable(audioVar.value, metadata);
-        await this.invalidateCompiledVideo();
-        await this.populateExistingAudio();
-        assistOS.showToast("Chapter audio updated.", "success");
+        try {
+            await this.persistAudioAttachment(payload);
+            await this.invalidateCompiledVideo();
+            await this.populateExistingAudio();
+            assistOS.showToast("Audio updated.", "success");
+        } catch (error) {
+            console.error("Failed to update audio", error);
+            assistOS.showToast("Failed to update audio.", "error");
+        }
     }
 
     async deleteBackgroundSound() {
-        const audioVar = this.getAudioVariable();
-        if (!audioVar) {
+        if (!this.chapter.backgroundSound) {
             return;
         }
-        await documentModule.setChapterVarValue(assistOS.space.id, this._document.id, this.chapter.id, "audio-attachment", "", null);
-        this.chapter.variables = this.chapter.variables.filter((variable) => variable.name !== "audio-attachment");
-        delete this.chapter.backgroundSound;
-        await this.invalidateCompiledVideo();
-        await this.populateExistingAudio();
-        assistOS.showToast("Chapter audio removed.", "info");
+        try {
+            await documentModule.setChapterAudioAttachment(assistOS.space.id, this._document.id, this.chapter.id, null);
+            delete this.chapter.backgroundSound;
+            await this.invalidateCompiledVideo();
+            await this.populateExistingAudio();
+            assistOS.showToast("Audio removed.", "info");
+        } catch (error) {
+            console.error("Failed to delete audio", error);
+            assistOS.showToast("Failed to delete audio.", "error");
+        }
     }
 
     async closeModal() {
@@ -137,7 +163,7 @@ export class ChapterAudio {
     async populateExistingAudio() {
         const audioData = this.getBackgroundSoundData();
         const audioConfigs = this.element.querySelector(".audio-configs");
-        const audioElement = this.element.querySelector(".chapter-audio");
+        const audioElement = this.element.querySelector(".audio-plugin-player");
         const loopInput = this.element.querySelector("#loop");
         const volumeInput = this.element.querySelector("#volume");
 
@@ -161,17 +187,20 @@ export class ChapterAudio {
     }
 
     getBackgroundSoundData() {
-        const variable = this.getAudioVariable();
-        const backgroundSound = this.buildBackgroundSoundFromVariable(variable);
-        if (backgroundSound) {
-            this.chapter.backgroundSound = backgroundSound;
-        } else {
-            delete this.chapter.backgroundSound;
+        if (this.chapter.backgroundSound) {
+            return this.chapter.backgroundSound;
         }
-        return backgroundSound;
+        const legacyVariable = this.getLegacyAudioVariable();
+        const fallbackSound = this.buildBackgroundSoundFromVariable(legacyVariable);
+        if (fallbackSound) {
+            this.chapter.backgroundSound = fallbackSound;
+            return fallbackSound;
+        }
+        delete this.chapter.backgroundSound;
+        return null;
     }
 
-    getAudioVariable() {
+    getLegacyAudioVariable() {
         if (!Array.isArray(this.chapter.variables)) {
             this.chapter.variables = [];
         }
@@ -194,28 +223,28 @@ export class ChapterAudio {
         };
     }
 
-    async persistAudioVariable(url, metadata) {
-        const variable = await documentModule.setChapterVarValue(
+    async persistAudioAttachment(payload) {
+        const backgroundSound = await documentModule.setChapterAudioAttachment(
             assistOS.space.id,
             this._document.id,
             this.chapter.id,
-            "audio-attachment",
-            url,
-            metadata
+            payload
         );
-        this.updateLocalAudioVariable(variable);
-        this.chapter.backgroundSound = this.buildBackgroundSoundFromVariable(variable);
+        if (backgroundSound) {
+            this.chapter.backgroundSound = backgroundSound;
+        } else {
+            delete this.chapter.backgroundSound;
+        }
     }
 
-    updateLocalAudioVariable(variable) {
-        if (!Array.isArray(this.chapter.variables)) {
-            this.chapter.variables = [];
+    ensureBackgroundSoundHydrated() {
+        if (this.chapter.backgroundSound) {
+            return;
         }
-        const index = this.chapter.variables.findIndex((item) => item.name === variable.name);
-        if (index === -1) {
-            this.chapter.variables.push(variable);
-        } else {
-            this.chapter.variables[index] = variable;
+        const legacyVariable = this.getLegacyAudioVariable();
+        const fallbackSound = this.buildBackgroundSoundFromVariable(legacyVariable);
+        if (fallbackSound) {
+            this.chapter.backgroundSound = fallbackSound;
         }
     }
 
@@ -229,6 +258,6 @@ export class ChapterAudio {
         if (!chapterElement) {
             return null;
         }
-        return chapterElement.querySelector(".icon-container.chapter-audio");
-    }
+        return chapterElement.querySelector(".icon-container.audio-plugin");
+}
 }

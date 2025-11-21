@@ -3,6 +3,16 @@ import pluginUtils from "../../../utils/pluginUtils.js";
 import UIUtils from "../document-view-page/UIUtils.js";
 const documentModule = assistOS.loadModule("document");
 
+const isMediaVariable = (variable) => {
+    if (!variable || typeof variable !== 'object') {
+        return false;
+    }
+    const meta = typeof variable.meta === 'string' ? variable.meta.toLowerCase() : '';
+    const type = typeof variable.type === 'string' ? variable.type.toLowerCase() : '';
+    const optionType = typeof variable.options?.type === 'string' ? variable.options.type.toLowerCase() : '';
+    return meta === 'multimedia' || type === 'multimedia' || optionType === 'multimedia'
+        || type === 'audio' || type === 'video' || optionType === 'audio' || optionType === 'video';
+};
 export class ChapterItem {
     constructor(element, invalidate) {
         this.element = element;
@@ -311,31 +321,41 @@ export class ChapterItem {
 
     renderInfoIcons() {
         const info = {
-            media: this.hasChapterMedia(),
-            variables: Array.isArray(this.chapter.variables) && this.chapter.variables.length > 0,
-            commands: this.hasChapterCommands()
+            mediaCount: this.getChapterMediaCount(),
+            variableCount: this.getChapterVariableCount(),
+            commandCount: this.getChapterCommandCount()
         };
         UIUtils.renderInfoIcons(this.element, info);
     }
 
-    hasChapterCommands() {
-        const rawCommands = typeof this.chapter.metadata?.commands === "string"
-            ? this.chapter.metadata.commands.trim()
-            : '';
-        return rawCommands.length > 0;
+    getChapterVariableCount() {
+        if (!Array.isArray(this.chapter.variables)) {
+            return 0;
+        }
+        return this.chapter.variables.filter((variable) => !isMediaVariable(variable)).length;
     }
 
-    hasChapterMedia() {
+    getChapterMediaCount() {
+        let count = 0;
         if (this.chapter.backgroundSound) {
-            return true;
+            count += 1;
         }
-        if (Array.isArray(this.chapter.attachments) && this.chapter.attachments.length > 0) {
-            return true;
+        if (this.chapter.backgroundVideo) {
+            count += 1;
+        }
+        if (Array.isArray(this.chapter.attachments)) {
+            count += this.chapter.attachments.length;
         }
         if (Array.isArray(this.chapter.variables)) {
-            return this.chapter.variables.some((variable) => variable.name === "audio-attachment" && variable.value);
+            count += this.chapter.variables.filter((variable) => isMediaVariable(variable)).length;
         }
-        return false;
+        return count;
+    }
+
+    getChapterCommandCount() {
+        const metadataCount = UIUtils.countCommandEntries(this.chapter.metadata?.commands);
+        const inlineCount = UIUtils.countCommandEntries(this.chapter.commands);
+        return metadataCount + inlineCount;
     }
 
 

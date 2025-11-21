@@ -1,6 +1,17 @@
 const documentModule = assistOS.loadModule("document");
 import UIUtils from "../document-view-page/UIUtils.js";
 import pluginUtils from "../../../utils/pluginUtils.js";
+
+const isMediaVariable = (variable) => {
+    if (!variable || typeof variable !== 'object') {
+        return false;
+    }
+    const meta = typeof variable.meta === 'string' ? variable.meta.toLowerCase() : '';
+    const type = typeof variable.type === 'string' ? variable.type.toLowerCase() : '';
+    const optionType = typeof variable.options?.type === 'string' ? variable.options.type.toLowerCase() : '';
+    return meta === 'multimedia' || type === 'multimedia' || optionType === 'multimedia'
+        || type === 'audio' || type === 'video' || optionType === 'audio' || optionType === 'video';
+};
 export class ParagraphItem {
     constructor(element, invalidate) {
         this.element = element;
@@ -243,36 +254,48 @@ export class ParagraphItem {
 
     renderInfoIcons() {
         const info = {
-            media: this.hasParagraphMedia(),
-            variables: Array.isArray(this.paragraph.variables) && this.paragraph.variables.length > 0,
-            commands: this.hasParagraphCommands()
+            mediaCount: this.getParagraphMediaCount(),
+            variableCount: this.getParagraphVariableCount(),
+            commandCount: this.getParagraphCommandCount()
         };
         UIUtils.renderInfoIcons(this.element, info);
     }
 
-    hasParagraphCommands() {
-        const metadataCommands = typeof this.paragraph.metadata?.commands === "string"
-            ? this.paragraph.metadata.commands.trim()
-            : "";
-        if (metadataCommands.length > 0) {
-            return true;
+    getParagraphVariableCount() {
+        if (!Array.isArray(this.paragraph.variables)) {
+            return 0;
         }
-        const runtimeCommands = this.paragraph.commands;
-        if (runtimeCommands && typeof runtimeCommands === "object") {
-            return Object.keys(runtimeCommands).length > 0;
-        }
-        return false;
+        return this.paragraph.variables.filter((variable) => !isMediaVariable(variable)).length;
     }
 
-    hasParagraphMedia() {
-        if (Array.isArray(this.paragraph.attachments) && this.paragraph.attachments.length > 0) {
-            return true;
+    getParagraphMediaCount() {
+        let count = Array.isArray(this.paragraph.attachments) ? this.paragraph.attachments.length : 0;
+        if (Array.isArray(this.paragraph.variables)) {
+            count += this.paragraph.variables.filter((variable) => isMediaVariable(variable)).length;
         }
         const runtimeCommands = this.paragraph.commands;
         if (runtimeCommands && typeof runtimeCommands === "object") {
-            return Boolean(runtimeCommands.audio || runtimeCommands.video || runtimeCommands.image || runtimeCommands.effects);
+            ["audio", "video", "image", "effects"].forEach((key) => {
+                const value = runtimeCommands[key];
+                if (!value) {
+                    return;
+                }
+                if (Array.isArray(value)) {
+                    count += value.length;
+                } else if (typeof value === "object") {
+                    count += Object.keys(value).length || 1;
+                } else {
+                    count += 1;
+                }
+            });
         }
-        return false;
+        return count;
+    }
+
+    getParagraphCommandCount() {
+        const metadataCount = UIUtils.countCommandEntries(this.paragraph.metadata?.commands);
+        const runtimeCount = UIUtils.countCommandEntries(this.paragraph.commands);
+        return metadataCount + runtimeCount;
     }
 
 

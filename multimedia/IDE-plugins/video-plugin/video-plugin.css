@@ -1,0 +1,28 @@
+.video-plugin__section {
+    margin-bottom: 10px;
+}
+
+.video-plugin__player {
+    width: 100%;
+    max-height: 220px;
+    border-radius: 6px;
+    background: #000;
+}
+
+.video-plugin__controls {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-top: 10px;
+    gap: 12px;
+}
+
+.video-plugin__controls .form-item {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.video-plugin__controls #video-volume {
+    width: 60px;
+}

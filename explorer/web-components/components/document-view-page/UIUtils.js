@@ -84,42 +84,73 @@ function changeCommentIndicator(element, commentMessages) {
     }
 }
 
+const createInfoIconMarkup = (icon) => {
+    const count = Number(icon.count);
+    const hasCount = Number.isFinite(count) && count > 0;
+    const counterMarkup = hasCount ? `<span class="info-counter">${count}</span>` : '';
+    return `<div class="info-icon-container ${icon.className}" title="${icon.title}">
+                <img class="info-icon" src="${icon.src}" alt="${icon.alt}">
+                ${counterMarkup}
+            </div>`;
+};
+
 function renderInfoIcons(element, info = {}) {
     const previewIcons = element.querySelector(".preview-icons");
     if (!previewIcons) {
         return;
     }
-    previewIcons.querySelectorAll(".info-icon").forEach((icon) => icon.remove());
-    const icons = [];
-    if (info.media) {
-        icons.push({
+
+    previewIcons.querySelectorAll(".info-icon-container, .info-icon").forEach((node) => node.remove());
+
+    const iconConfigs = [
+        {
             className: "has-media",
             src: "./assets/icons/attachment.svg",
             alt: "media",
-            title: "Media attachments"
-        });
-    }
-    if (info.variables) {
-        icons.push({
+            title: "Media attachments",
+            count: info.mediaCount
+        },
+        {
             className: "has-variables",
             src: "./assets/icons/variable.svg",
             alt: "variables",
-            title: "Variables"
-        });
-    }
-    if (info.commands) {
-        icons.push({
+            title: "Variables",
+            count: info.variableCount
+        },
+        {
             className: "has-commands",
             src: "./assets/icons/script.svg",
             alt: "commands",
-            title: "SOPLang commands"
-        });
+            title: "SOPLang commands",
+            count: info.commandCount
+        }
+    ].map((icon) => ({
+        ...icon,
+        count: Number(icon.count)
+    })).filter((icon) => Number.isFinite(icon.count) && icon.count > 0);
+
+    for (let i = iconConfigs.length - 1; i >= 0; i--) {
+        previewIcons.insertAdjacentHTML("afterbegin", createInfoIconMarkup(iconConfigs[i]));
     }
-    for (let i = icons.length - 1; i >= 0; i--) {
-        const icon = icons[i];
-        previewIcons.insertAdjacentHTML("afterbegin",
-            `<img class="info-icon ${icon.className}" src="${icon.src}" alt="${icon.alt}" title="${icon.title}">`);
+}
+function countCommandEntries(value) {
+    if (!value) {
+        return 0;
     }
+    if (typeof value === "string") {
+        return value
+            .split("\n")
+            .map((line) => line.trim())
+            .filter(Boolean)
+            .length;
+    }
+    if (Array.isArray(value)) {
+        return value.reduce((total, entry) => total + countCommandEntries(entry), 0);
+    }
+    if (typeof value === "object") {
+        return Object.values(value).reduce((total, entry) => total + (entry ? 1 : 0), 0);
+    }
+    return 0;
 }
 function displayCurrentStatus(element, comments, level) {
     let previewIcons = element.querySelector(".preview-icons");
@@ -152,5 +183,6 @@ export default {
     changeCommentIndicator,
     displayCurrentStatus,
     changeStatusIcon,
-    renderInfoIcons
+    renderInfoIcons,
+    countCommandEntries
 };

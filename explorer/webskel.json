@@ -202,9 +202,14 @@
             "presenterClassName": "ImageCreator"
         },
         {
-            "name": "chapter-audio",
+            "name": "audio-plugin",
             "type": "modals",
-            "presenterClassName": "ChapterAudio"
+            "presenterClassName": "AudioPlugin"
+        },
+        {
+            "name": "video-plugin",
+            "type": "modals",
+            "presenterClassName": "VideoPlugin"
         },
         {
             "name": "simple-state-icon",

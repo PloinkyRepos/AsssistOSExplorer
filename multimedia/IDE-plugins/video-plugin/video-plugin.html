@@ -1,0 +1,27 @@
+<div class="modal-header">
+    <div>Background Video</div>
+    <div class="close" data-local-action="closeModal">
+        <span aria-hidden="true">&times;</span>
+    </div>
+</div>
+<div class="modal-body">
+    <button class="general-button video-plugin__section" data-local-action="insertVideo">Insert Video</button>
+    <div class="video-configs hidden">
+        <div class="video-plugin__section">
+            <video class="video-plugin__player" controls preload="metadata"></video>
+        </div>
+        <div class="video-plugin__controls">
+            <div class="form-item">
+                <label for="video-loop" class="form-label">Loop</label>
+                <input type="checkbox" id="video-loop">
+            </div>
+            <div class="form-item">
+                <label for="video-volume" class="form-label">Volume</label>
+                <input class="form-input" type="number" id="video-volume" min="0" max="100" step="1">
+            </div>
+            <button class="general-button" data-local-action="saveVideoChanges">Save</button>
+            <button class="general-button danger" data-local-action="deleteBackgroundVideo">Delete</button>
+        </div>
+    </div>
+</div>
+<input type="file" class="file-input hidden" accept="video/*">

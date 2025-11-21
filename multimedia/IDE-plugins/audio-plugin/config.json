@@ -1,0 +1,10 @@
+{
+    "component": "audio-plugin",
+    "location": ["chapter"],
+    "tooltip": "Audio Plugin",
+    "icon": "/multimedia/IDE-plugins/assets/icons/audio-plugin.svg",
+    "presenter": "AudioPlugin",
+    "type": "modal",
+    "autoPin": false,
+    "dependencies": []
+}

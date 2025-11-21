@@ -87,6 +87,368 @@ const normalizeCommandString = (value, fallback = '') => {
 
 const scriptCommandNames = new Set(['macro', 'jsdef', 'form', 'prompt']);
 
+const toFiniteNumber = (value, fallback = 0) => {
+    const parsed = Number(value);
+    return Number.isFinite(parsed) ? parsed : fallback;
+};
+
+const extractMediaIdFromPath = (path = '') => {
+    if (typeof path !== 'string') {
+        return '';
+    }
+    const trimmed = path.trim();
+    const match = trimmed.match(/\/([^/]+?)(?:\.[^.\/]+)?$/);
+    return match ? match[1] : '';
+};
+
+const sanitizeJsonLikeObject = (value = '') => {
+    if (typeof value !== 'string') {
+        return '';
+    }
+    let normalized = value.trim().replace(/;$/, '');
+    if (!normalized) {
+        return '';
+    }
+    if ((normalized.startsWith('"') && normalized.endsWith('"'))
+        || (normalized.startsWith('\'') && normalized.endsWith('\''))) {
+        normalized = normalized.slice(1, -1);
+    }
+    normalized = normalized
+        .replace(/([{,]\s*)([A-Za-z0-9_]+)\s*:/g, '$1"$2":')
+        .replace(/'/g, '"');
+    return normalized;
+};
+
+const parseJsonWithFallback = (value = '') => {
+    if (typeof value !== 'string') {
+        return null;
+    }
+    try {
+        return JSON.parse(value);
+    } catch (_) {
+        const sanitized = sanitizeJsonLikeObject(value);
+        if (!sanitized) {
+            return null;
+        }
+        try {
+            return JSON.parse(sanitized);
+        } catch (_error) {
+            return null;
+        }
+    }
+};
+
+const MEDIA_ATTACHMENT_TYPES = {
+    audio: {
+        kind: 'audio',
+        stateKey: 'backgroundSound',
+        modelFactory: (payload) => ({
+            id: payload.id ?? '',
+            url: payload.path,
+            volume: toFiniteNumber(payload.volume, 50),
+            loop: Boolean(payload.loop),
+            duration: toFiniteNumber(payload.duration, payload.end ?? 0),
+            start: toFiniteNumber(payload.start, 0),
+            end: toFiniteNumber(payload.end, payload.duration ?? 0)
+        })
+    },
+    video: {
+        kind: 'video',
+        stateKey: 'backgroundVideo',
+        modelFactory: (payload) => {
+            const model = {
+                id: payload.id ?? '',
+                url: payload.path,
+                loop: Boolean(payload.loop),
+                duration: toFiniteNumber(payload.duration, payload.end ?? 0),
+                start: toFiniteNumber(payload.start, 0),
+                end: toFiniteNumber(payload.end, payload.duration ?? 0)
+            };
+            if (payload.volume !== undefined) {
+                model.volume = toFiniteNumber(payload.volume, 100);
+            }
+            return model;
+        }
+    }
+};
+
+const getAttachmentConfig = (type) => {
+    if (!type) {
+        return null;
+    }
+    const normalized = String(type).toLowerCase();
+    return MEDIA_ATTACHMENT_TYPES[normalized] ?? null;
+};
+
+const generateMediaCommandIdentifier = (type = '') => {
+    const raw = generateId('media');
+    const suffix = raw.slice(-6);
+    const normalizedType = String(type || 'misc').replace(/[^a-z0-9]+/gi, '').toLowerCase() || 'misc';
+    return `@media_${normalizedType}_${suffix}`;
+};
+
+const tokenizeKeyValuePairs = (text = '') => {
+    const tokens = [];
+    text.replace(/"([^"]*)"|(\S+)/g, (_match, quoted, bare) => {
+        tokens.push(typeof quoted === 'string' ? quoted : bare);
+        return '';
+    });
+    return tokens;
+};
+
+const parseModernMediaCommand = (line = '') => {
+    const trimmed = line.trim();
+    if (!trimmed.toLowerCase().startsWith('@media')) {
+        return null;
+    }
+    const firstSpace = trimmed.indexOf(' ');
+    const identifier = firstSpace !== -1 ? trimmed.slice(0, firstSpace) : trimmed;
+    let derivedKind = null;
+    const kindMatch = identifier.match(/^@media_([^_]+)_/i);
+    if (kindMatch && kindMatch[1]) {
+        derivedKind = kindMatch[1].toLowerCase();
+    }
+    const remainder = firstSpace !== -1 ? trimmed.slice(firstSpace).trim() : '';
+    if (!remainder.toLowerCase().startsWith('attach')) {
+        return null;
+    }
+    const payloadSection = remainder.slice('attach'.length).trim();
+    if (!payloadSection) {
+        return null;
+    }
+    const tokens = tokenizeKeyValuePairs(payloadSection);
+    const map = {};
+    for (let i = 0; i < tokens.length - 1; i += 2) {
+        const key = tokens[i];
+        const value = tokens[i + 1];
+        if (!key) {
+            continue;
+        }
+        const normalizedKey = key.replace(/^"+|"+$/g, '').toLowerCase();
+        let normalizedValue = value;
+        if (typeof value === 'string') {
+            const cleaned = value.replace(/^"+|"+$/g, '');
+            if (cleaned.toLowerCase() === 'true' || cleaned.toLowerCase() === 'false') {
+                normalizedValue = cleaned.toLowerCase() === 'true';
+            } else if (!Number.isNaN(Number(cleaned)) && cleaned.trim() !== '') {
+                normalizedValue = Number(cleaned);
+            } else {
+                normalizedValue = cleaned;
+            }
+        }
+        map[normalizedKey] = normalizedValue;
+    }
+    return {
+        identifier,
+        derivedKind,
+        ...map
+    };
+};
+
+const findAttachmentPayloadInCommands = (commandsBlock = '', type) => {
+    const config = getAttachmentConfig(type);
+    if (!config || typeof commandsBlock !== 'string' || !commandsBlock.trim()) {
+        return null;
+    }
+    const lines = commandsBlock.split('\n');
+    for (const rawLine of lines) {
+        const parsed = parseModernMediaCommand(rawLine);
+        if (!parsed) {
+            continue;
+        }
+        const derivedKind = typeof parsed.kind === 'string'
+            ? parsed.kind.toLowerCase()
+            : (typeof parsed.derivedKind === 'string' ? parsed.derivedKind : config.kind);
+        const kind = derivedKind || config.kind;
+        if (kind === config.kind) {
+            return {
+                id: parsed.id ?? parsed.identifier ?? null,
+                path: parsed.path ?? parsed.url ?? null,
+                volume: parsed.volume,
+                duration: parsed.duration,
+                loop: parsed.loop,
+                start: parsed.start,
+                end: parsed.end
+            };
+        }
+    }
+    return null;
+};
+
+const normalizeAttachmentPayload = (payload = {}) => {
+    if (!payload || typeof payload !== 'object') {
+        return null;
+    }
+    const path = typeof payload.path === 'string' && payload.path.trim()
+        ? payload.path.trim()
+        : (typeof payload.url === 'string' ? payload.url.trim() : '');
+    if (!path) {
+        return null;
+    }
+    const normalized = { path };
+    if (typeof payload.id === 'string' && payload.id.trim()) {
+        normalized.id = payload.id.trim();
+    } else {
+        const derivedId = extractMediaIdFromPath(path);
+        if (derivedId) {
+            normalized.id = derivedId;
+        }
+    }
+    if (payload.volume !== undefined) {
+        normalized.volume = toFiniteNumber(payload.volume, 0);
+    }
+    if (payload.duration !== undefined) {
+        normalized.duration = toFiniteNumber(payload.duration, 0);
+    }
+    if (payload.loop !== undefined) {
+        normalized.loop = Boolean(payload.loop);
+    }
+    if (payload.start !== undefined) {
+        normalized.start = toFiniteNumber(payload.start, 0);
+    }
+    if (payload.end !== undefined) {
+        normalized.end = toFiniteNumber(payload.end, normalized.duration ?? 0);
+    } else if (normalized.duration !== undefined) {
+        normalized.end = normalized.duration;
+    }
+    return normalized;
+};
+
+const createAttachmentModel = (type, payload = {}) => {
+    const config = getAttachmentConfig(type);
+    if (!config) {
+        return null;
+    }
+    const normalized = normalizeAttachmentPayload(payload);
+    if (!normalized) {
+        return null;
+    }
+    return config.modelFactory(normalized);
+};
+
+const stripAttachmentCommand = (commandsBlock = '', type) => {
+    const config = getAttachmentConfig(type);
+    if (!config || typeof commandsBlock !== 'string') {
+        return typeof commandsBlock === 'string' ? commandsBlock : '';
+    }
+    const lines = commandsBlock.split('\n');
+    const filtered = lines.filter((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) {
+            return true;
+        }
+        if (trimmed.toLowerCase().startsWith('@media')) {
+            const parsed = parseModernMediaCommand(trimmed);
+            if (parsed) {
+                const derivedKind = typeof parsed.kind === 'string'
+                    ? parsed.kind.toLowerCase()
+                    : (typeof parsed.derivedKind === 'string' ? parsed.derivedKind : config.kind);
+                const kind = derivedKind || config.kind;
+                return kind !== config.kind;
+            }
+        }
+        return true;
+    });
+    const joined = filtered.join('\n');
+    return joined.replace(/\n+$/g, '');
+};
+
+const ensureTrailingNewline = (value = '') => {
+    if (!value) {
+        return '';
+    }
+    return value.endsWith('\n') ? value : `${value}\n`;
+};
+
+const appendAttachmentCommand = (commandsBlock = '', type, payload = null) => {
+    const config = getAttachmentConfig(type);
+    const cleaned = stripAttachmentCommand(commandsBlock ?? '', type).trimEnd();
+    if (!config) {
+        return ensureTrailingNewline(cleaned);
+    }
+    if (!payload) {
+        return ensureTrailingNewline(cleaned);
+    }
+    const normalized = normalizeAttachmentPayload(payload);
+    if (!normalized) {
+        return ensureTrailingNewline(cleaned);
+    }
+    const identifier = generateMediaCommandIdentifier(config.kind);
+    const pairs = [
+        ['id', normalized.id ?? extractMediaIdFromPath(normalized.path)],
+        ['path', normalized.path]
+    ];
+    if (normalized.volume !== undefined) pairs.push(['volume', normalized.volume]);
+    if (normalized.duration !== undefined) pairs.push(['duration', normalized.duration]);
+    if (normalized.loop !== undefined) pairs.push(['loop', normalized.loop]);
+    if (normalized.start !== undefined) pairs.push(['start', normalized.start]);
+    if (normalized.end !== undefined) pairs.push(['end', normalized.end]);
+
+    const formatValue = (value) => {
+        if (typeof value === 'number' && Number.isFinite(value)) {
+            return String(value);
+        }
+        if (typeof value === 'boolean') {
+            return value ? 'true' : 'false';
+        }
+        const str = String(value ?? '');
+        return `"${str.replace(/"/g, '\\"')}"`;
+    };
+
+    const commandLine = `${identifier} attach ${pairs
+        .filter(([, value]) => value !== undefined && value !== null && value !== '')
+        .map(([key, value]) => `"${key}" ${formatValue(value)}`)
+        .join(' ')}`;
+
+    const base = cleaned ? ensureTrailingNewline(cleaned) : '';
+    return ensureTrailingNewline(`${base}${commandLine}`);
+};
+
+const deriveChapterMediaAttachment = (type, chapter = {}, metadata = {}) => {
+    const payload = findAttachmentPayloadInCommands(chapter.commands, type)
+        ?? findAttachmentPayloadInCommands(metadata.commands, type);
+    if (payload) {
+        const model = createAttachmentModel(type, payload);
+        if (model) {
+            return model;
+        }
+    }
+    return null;
+};
+
+const setChapterMediaAttachment = async (type, documentIdOrPath, chapterId, payload) => {
+    const config = getAttachmentConfig(type);
+    if (!config) {
+        throw new Error(`Unsupported attachment type "${type}".`);
+    }
+    const document = await getDocumentModel(documentIdOrPath);
+    const chapter = document.chapters.find((item) => item.id === chapterId);
+    if (!chapter) {
+        throw new Error(`Chapter ${chapterId} not found.`);
+    }
+    const normalizedPayload = payload ? normalizeAttachmentPayload(payload) : null;
+    if (payload && !normalizedPayload) {
+        throw new Error(`Invalid ${type} payload supplied. Expected at least a path/url field.`);
+    }
+    const updatedCommands = appendAttachmentCommand(chapter.commands ?? '', type, normalizedPayload);
+    chapter.commands = updatedCommands;
+    if (chapter.metadata) {
+        chapter.metadata.commands = updatedCommands;
+    }
+    const stateKey = config.stateKey;
+    if (normalizedPayload && stateKey) {
+        const model = config.modelFactory(normalizedPayload);
+        if (model) {
+            chapter[stateKey] = model;
+        }
+    }
+    if (!normalizedPayload && stateKey) {
+        delete chapter[stateKey];
+    }
+    await persistDocument(documentIdOrPath);
+    return stateKey ? (chapter[stateKey] ?? null) : null;
+};
+
 const encodeSOPCode = (str) => {
     if (typeof str !== 'string') {
         return '';
@@ -253,27 +615,8 @@ const encodeBase64 = (value) => {
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
-const deriveChapterBackgroundSound = (chapter = {}, metadata = {}) => {
-    const variableSource = Array.isArray(chapter.variables)
-        ? chapter.variables
-        : Array.isArray(metadata.variables)
-            ? metadata.variables
-            : [];
-    const audioVariable = variableSource.find((variable) => variable?.name === 'audio-attachment' && variable.value);
-    if (!audioVariable) {
-        return null;
-    }
-    const options = audioVariable.options || {};
-    return {
-        id: options.id ?? '',
-        url: typeof audioVariable.value === 'string' ? audioVariable.value : '',
-        volume: typeof options.volume === 'number' ? options.volume : 50,
-        loop: Boolean(options.loop),
-        duration: typeof options.duration === 'number' ? options.duration : 0,
-        start: typeof options.start === 'number' ? options.start : 0,
-        end: typeof options.end === 'number' ? options.end : (typeof options.duration === 'number' ? options.duration : 0)
-    };
-};
+const deriveChapterBackgroundSound = (chapter = {}, metadata = {}) => deriveChapterMediaAttachment('audio', chapter, metadata);
+const deriveChapterBackgroundVideo = (chapter = {}, metadata = {}) => deriveChapterMediaAttachment('video', chapter, metadata);
 
 const createCommentDefaults = (comments = {}) => ({
     messages: [],
@@ -335,6 +678,7 @@ const hydrateChapterModel = (chapter, index) => {
     }
 
     const backgroundSound = deriveChapterBackgroundSound(chapter, metadata);
+    const backgroundVideo = deriveChapterBackgroundVideo(chapter, metadata);
 
     const chapterInstance = new Chapter({
         id: metadata.id,
@@ -357,6 +701,9 @@ const hydrateChapterModel = (chapter, index) => {
 
     if (backgroundSound) {
         chapterInstance.backgroundSound = backgroundSound;
+    }
+    if (backgroundVideo) {
+        chapterInstance.backgroundVideo = backgroundVideo;
     }
 
     return chapterInstance;
@@ -885,6 +1232,12 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return variable;
     },
+    async setChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
+        return setChapterMediaAttachment('audio', documentIdOrPath, chapterId, payload);
+    },
+    async setChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
+        return setChapterMediaAttachment('video', documentIdOrPath, chapterId, payload);
+    },
     async addParagraph(_spaceId, chapterId, paragraphText = '', metadata = null, paragraphType = 'markdown', position = null) {
         let documentReference;
         let chapterReference;
@@ -1104,6 +1457,18 @@ const documentModule = {
         variable.value = value;
         await persistDocument(documentIdOrPath);
         return variable;
+    },
+    async updateChapterCommands(_spaceId, documentIdOrPath, chapterId, commands) {
+        const document = await getDocumentModel(documentIdOrPath);
+        const chapter = document.chapters.find((item) => item.id === chapterId);
+        if (!chapter) {
+            throw new Error(`Chapter ${chapterId} not found.`);
+        }
+        const currentCommands = normalizeCommandString(chapter.commands ?? '', '');
+        chapter.commands = normalizeCommandString(commands, currentCommands);
+        chapter.metadata.commands = chapter.commands;
+        await persistDocument(documentIdOrPath);
+        return chapter.commands;
     },
     async updateParagraphCommands(_spaceId, chapterId, paragraphId, commands) {
         const paragraph = await this.getParagraph(null, paragraphId);

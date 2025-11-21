@@ -1,0 +1,10 @@
+{
+    "component": "video-plugin",
+    "location": ["chapter"],
+    "tooltip": "Video Plugin",
+    "icon": "/multimedia/IDE-plugins/assets/icons/video-plugin.svg",
+    "presenter": "VideoPlugin",
+    "type": "modal",
+    "autoPin": false,
+    "dependencies": []
+}

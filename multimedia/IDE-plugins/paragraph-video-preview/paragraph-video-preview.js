@@ -31,7 +31,7 @@ export class ParagraphVideoPreview {
         this.imgElement = this.element.querySelector(".paragraph-image");
         this.audioElement = this.element.querySelector(".audio-player");
         this.currentTimeElement = this.element.querySelector(".current-time");
-        this.chapterAudioElement = this.element.querySelector(".chapter-audio");
+        this.chapterAudioElement = this.element.querySelector(".audio-plugin-player");
         if (!this.boundShowControls) {
             this.boundShowControls = this.showControls.bind(this);
             this.boundHideControls = this.hideControls.bind(this);
@@ -197,7 +197,7 @@ export class ParagraphVideoPreview {
                 mediaPlayer.src = await spaceModule.getVideoURL(this.paragraph.commands.video.id);
             } else if (id === "paragraph-audio") {
                 mediaPlayer.src = await spaceModule.getAudioURL(this.paragraph.commands.audio.id);
-            } else if (id === "chapter-audio") {
+            } else if (id === "audio-plugin") {
                 mediaPlayer.src = await spaceModule.getAudioURL(this.chapter.backgroundSound.id);
             }
             mediaPlayer.load();

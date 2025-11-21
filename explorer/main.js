@@ -13,6 +13,10 @@ import {
 const EXPLORER_AGENT_ID = 'explorer';
 const RUNTIME_PLUGIN_TOOL = 'collect_ide_plugins';
 
+if (typeof window !== 'undefined') {
+    window.ASSISTOS_AGENT_ID = window.ASSISTOS_AGENT_ID || EXPLORER_AGENT_ID;
+}
+
 const isNonEmptyString = (value) => typeof value === 'string' && value.trim().length > 0;
 
 async function fetchRuntimePlugins() {
