@@ -413,6 +413,8 @@ export class ChapterItem {
         this.currentPlugin = pluginName;
         let context = {
             chapterId: this.chapter.id,
+            hostSelector: `chapter-item[data-chapter-id="${this.chapter.id}"]`,
+            hostType: 'chapter'
         }
         await pluginUtils.openPlugin(pluginName, type, context, this, autoPin);
         await this.updateLastOpenedPlugin(pluginName);

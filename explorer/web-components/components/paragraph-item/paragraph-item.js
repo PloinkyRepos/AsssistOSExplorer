@@ -89,9 +89,9 @@ export class ParagraphItem {
         UIUtils.changeCommentIndicator(this.element, this.paragraph.comments.messages);
         UIUtils.displayCurrentStatus(this.element, this.paragraph.comments, "paragraph");
         this.renderInfoIcons();
-        if(this.paragraph.comments.pluginLastOpened){
+        /*if(this.paragraph.comments.pluginLastOpened){
             await this.openPlugin("", "paragraph", this.paragraph.comments.pluginLastOpened, true);
-        }
+        }*/
     }
 
     async updateStatus(status, type, pluginName, autoPin) {
@@ -357,7 +357,9 @@ export class ParagraphItem {
         this.currentPlugin = pluginName;
         let context = {
             chapterId: this.chapter.id,
-            paragraphId: this.paragraph.id
+            paragraphId: this.paragraph.id,
+            hostSelector: `paragraph-item[data-paragraph-id="${this.paragraph.id}"]`,
+            hostType: 'paragraph'
         }
         await pluginUtils.openPlugin(pluginName, type, context, this, autoPin);
         await this.updateLastOpenedPlugin(pluginName);

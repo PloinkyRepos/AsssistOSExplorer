@@ -1,6 +1,6 @@
 {
     "component": "video-plugin",
-    "location": ["chapter"],
+    "location": ["chapter", "paragraph"],
     "tooltip": "Video Plugin",
     "icon": "/multimedia/IDE-plugins/assets/icons/video-plugin.svg",
     "presenter": "VideoPlugin",

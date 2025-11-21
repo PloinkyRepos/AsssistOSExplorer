@@ -262,6 +262,20 @@ const updateChapterMediaState = (chapter) => {
     chapter.backgroundImage = imageAttachments[0] ?? null;
 };
 
+const updateParagraphMediaState = (paragraph) => {
+    if (!paragraph) {
+        return;
+    }
+    const audioAttachments = collectMediaAttachments(paragraph.commands ?? '', 'audio');
+    const videoAttachments = collectMediaAttachments(paragraph.commands ?? '', 'video');
+    const imageAttachments = collectMediaAttachments(paragraph.commands ?? '', 'image');
+    paragraph.mediaAttachments = {
+        audio: audioAttachments,
+        video: videoAttachments,
+        image: imageAttachments
+    };
+};
+
 const generateMediaCommandIdentifier = (type = '') => {
     const raw = generateId('media');
     const suffix = raw.slice(-6);
@@ -586,6 +600,54 @@ const setChapterMediaAttachment = async (type, documentIdOrPath, chapterId, payl
     return result;
 };
 
+const setParagraphMediaAttachment = async (type, documentIdOrPath, chapterId, paragraphId, payload) => {
+    const config = getAttachmentConfig(type);
+    if (!config) {
+        throw new Error(`Unsupported attachment type "${type}".`);
+    }
+    const document = await getDocumentModel(documentIdOrPath);
+    const chapter = document.chapters.find((item) => item.id === chapterId);
+    if (!chapter) {
+        throw new Error(`Chapter ${chapterId} not found.`);
+    }
+    const paragraph = chapter.paragraphs.find((item) => item.id === paragraphId);
+    if (!paragraph) {
+        throw new Error(`Paragraph ${paragraphId} not found.`);
+    }
+    const normalizedPayload = payload ? normalizeAttachmentPayload(payload) : null;
+    if (payload && !normalizedPayload) {
+        throw new Error(`Invalid ${type} payload supplied. Expected at least a path/url field.`);
+    }
+    if (!normalizedPayload) {
+        const updatedCommands = stripAttachmentCommand(paragraph.commands ?? '', type, payload?.identifier || null);
+        paragraph.commands = updatedCommands;
+        if (paragraph.metadata) {
+            paragraph.metadata.commands = updatedCommands;
+        }
+        updateParagraphMediaState(paragraph);
+        await persistDocument(documentIdOrPath);
+        return null;
+    }
+    const options = {};
+    if (payload?.identifier) {
+        options.identifier = payload.identifier;
+    }
+    const updatedCommands = appendAttachmentCommand(paragraph.commands ?? '', type, normalizedPayload, options);
+    paragraph.commands = updatedCommands;
+    if (paragraph.metadata) {
+        paragraph.metadata.commands = updatedCommands;
+    }
+    updateParagraphMediaState(paragraph);
+    const attachments = paragraph.mediaAttachments?.[config.collectionKey] ?? [];
+    let result = null;
+    if (attachments.length) {
+        const targetId = options.identifier || attachments[attachments.length - 1]?.identifier;
+        result = attachments.find((item) => item.identifier === targetId) ?? attachments[attachments.length - 1] ?? null;
+    }
+    await persistDocument(documentIdOrPath);
+    return result;
+};
+
 const deleteChapterMediaAttachment = async (type, documentIdOrPath, chapterId, identifier = null) => {
     const config = getAttachmentConfig(type);
     if (!config) {
@@ -602,6 +664,30 @@ const deleteChapterMediaAttachment = async (type, documentIdOrPath, chapterId, i
         chapter.metadata.commands = updatedCommands;
     }
     updateChapterMediaState(chapter);
+    await persistDocument(documentIdOrPath);
+    return true;
+};
+
+const deleteParagraphMediaAttachment = async (type, documentIdOrPath, chapterId, paragraphId, identifier = null) => {
+    const config = getAttachmentConfig(type);
+    if (!config) {
+        throw new Error(`Unsupported attachment type "${type}".`);
+    }
+    const document = await getDocumentModel(documentIdOrPath);
+    const chapter = document.chapters.find((item) => item.id === chapterId);
+    if (!chapter) {
+        throw new Error(`Chapter ${chapterId} not found.`);
+    }
+    const paragraph = chapter.paragraphs.find((item) => item.id === paragraphId);
+    if (!paragraph) {
+        throw new Error(`Paragraph ${paragraphId} not found.`);
+    }
+    const updatedCommands = stripAttachmentCommand(paragraph.commands ?? '', type, identifier || null);
+    paragraph.commands = updatedCommands;
+    if (paragraph.metadata) {
+        paragraph.metadata.commands = updatedCommands;
+    }
+    updateParagraphMediaState(paragraph);
     await persistDocument(documentIdOrPath);
     return true;
 };
@@ -809,7 +895,7 @@ const hydrateParagraphModel = (paragraph, chapterId) => {
     paragraph.commands = commands;
     metadata.commands = commands;
 
-    return {
+    const paragraphInstance = {
         id: metadata.id,
         chapterId,
         metadata,
@@ -826,6 +912,8 @@ const hydrateParagraphModel = (paragraph, chapterId) => {
         tasks: metadata.tasks ?? [],
         variables: metadata.variables ?? []
     };
+    updateParagraphMediaState(paragraphInstance);
+    return paragraphInstance;
 };
 
 const hydrateChapterModel = (chapter, index) => {
@@ -1411,8 +1499,14 @@ const documentModule = {
     async setChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
         return setChapterMediaAttachment('video', documentIdOrPath, chapterId, payload);
     },
+    async setParagraphAudioAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, payload) {
+        return setParagraphMediaAttachment('audio', documentIdOrPath, chapterId, paragraphId, payload);
+    },
     async deleteChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('audio', documentIdOrPath, chapterId, identifier);
+    },
+    async deleteParagraphAudioAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, identifier) {
+        return deleteParagraphMediaAttachment('audio', documentIdOrPath, chapterId, paragraphId, identifier);
     },
     async deleteChapterImageAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('image', documentIdOrPath, chapterId, identifier);

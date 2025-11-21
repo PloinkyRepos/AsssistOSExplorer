@@ -1,6 +1,6 @@
 {
     "component": "image-plugin",
-    "location": ["chapter"],
+    "location": ["chapter", "paragraph"],
     "tooltip": "Image Plugin",
     "icon": "/multimedia/IDE-plugins/assets/icons/image-plugin.svg",
     "presenter": "ImagePlugin",

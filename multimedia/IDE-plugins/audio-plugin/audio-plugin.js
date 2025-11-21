@@ -11,12 +11,15 @@ function getContext(element) {
     }
 }
 
+
 export class AudioPlugin {
     constructor(element, invalidate) {
         this.element = element;
         this.invalidate = invalidate;
         const context = getContext(this.element);
         this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
+        this.paragraphId = context.paragraphId || this.element.getAttribute("data-paragraph-id");
+        this.hostSelector = context.hostSelector || "";
         const documentViewPage = document.querySelector("document-view-page");
         this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
         if (!this.documentPresenter || !this.documentPresenter._document) {
@@ -24,10 +27,22 @@ export class AudioPlugin {
         }
         this._document = this.documentPresenter._document;
         this.chapter = this._document.chapters.find((chapter) => chapter.id === this.chapterId);
+        if (!this.chapter) {
+            throw new Error(`Chapter ${this.chapterId} not found.`);
+        }
         if (!Array.isArray(this.chapter.variables)) {
             this.chapter.variables = [];
         }
-        this.ensureBackgroundSoundHydrated();
+        if (this.paragraphId) {
+            this.isParagraphContext = true;
+            this.paragraph = this.chapter.paragraphs?.find((paragraph) => paragraph.id === this.paragraphId) || null;
+            if (!this.paragraph) {
+                throw new Error(`Paragraph ${this.paragraphId} not found.`);
+            }
+        } else {
+            this.isParagraphContext = false;
+            this.ensureBackgroundSoundHydrated();
+        }
         this.invalidate();
     }
 
@@ -102,14 +117,14 @@ export class AudioPlugin {
     }
 
     async closeModal() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter) {
-            await chapterPresenter.closePlugin("", false);
+        const presenter = this.getHostPresenter();
+        if (presenter?.closePlugin) {
+            await presenter.closePlugin("", false);
         } else {
             this.resetPluginButtonState();
         }
         assistOS.UI.closeModal(this.element);
-        this.requestChapterRerender();
+        this.requestContextRerender();
     }
 
     resetPluginButtonState() {
@@ -120,6 +135,9 @@ export class AudioPlugin {
     }
 
     async invalidateCompiledVideo() {
+        if (this.isParagraphContext) {
+            return;
+        }
         if (this.chapter.commands.compileVideo) {
             delete this.chapter.commands.compileVideo;
             await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
@@ -132,6 +150,12 @@ export class AudioPlugin {
     }
 
     getAudioAttachments() {
+        if (this.isParagraphContext) {
+            if (Array.isArray(this.paragraph?.mediaAttachments?.audio) && this.paragraph.mediaAttachments.audio.length) {
+                return this.paragraph.mediaAttachments.audio;
+            }
+            return [];
+        }
         if (Array.isArray(this.chapter.mediaAttachments?.audio) && this.chapter.mediaAttachments.audio.length) {
             return this.chapter.mediaAttachments.audio;
         }
@@ -242,7 +266,17 @@ export class AudioPlugin {
             return;
         }
         try {
-            await documentModule.deleteChapterAudioAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            if (this.isParagraphContext) {
+                await documentModule.deleteParagraphAudioAttachment(
+                    assistOS.space.id,
+                    this._document.id,
+                    this.chapter.id,
+                    this.paragraph.id,
+                    targetIdentifier
+                );
+            } else {
+                await documentModule.deleteChapterAudioAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            }
             await this.invalidateCompiledVideo();
             await this.populateExistingAudio();
             assistOS.showToast('Audio removed.', 'info');
@@ -253,17 +287,21 @@ export class AudioPlugin {
     }
 
     async persistAudioAttachment(payload) {
-        const attachment = await documentModule.setChapterAudioAttachment(
+        if (this.isParagraphContext) {
+            return documentModule.setParagraphAudioAttachment(
+                assistOS.space.id,
+                this._document.id,
+                this.chapter.id,
+                this.paragraph.id,
+                payload
+            );
+        }
+        return documentModule.setChapterAudioAttachment(
             assistOS.space.id,
             this._document.id,
             this.chapter.id,
             payload
         );
-        if (attachment) {
-            this.chapter.backgroundSound = attachment;
-        } else {
-            delete this.chapter.backgroundSound;
-        }
     }
 
     ensureBackgroundSoundHydrated() {
@@ -273,32 +311,34 @@ export class AudioPlugin {
         }
     }
 
-    getChapterPresenter() {
-        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
-        return chapterElement ? chapterElement.webSkelPresenter : null;
+    getHostPresenter() {
+        const hostElement = this.getHostElement();
+        return hostElement?.webSkelPresenter || null;
     }
 
     getPluginIconElement() {
-        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
-        if (!chapterElement) {
+        const hostElement = this.getHostElement();
+        if (!hostElement) {
             return null;
         }
-        return chapterElement.querySelector(".icon-container.audio-plugin");
+        return hostElement.querySelector(`.icon-container.${this.element.tagName.toLowerCase()}`);
     }
 
     refreshChapterPreviewIcons() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter?.renderInfoIcons) {
-            chapterPresenter.renderInfoIcons();
-        }
+        const presenter = this.getHostPresenter();
+        presenter?.renderInfoIcons?.();
     }
 
-    requestChapterRerender() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter?.invalidate) {
-            chapterPresenter.invalidate();
+    requestContextRerender() {
+        const presenter = this.getHostPresenter();
+        if (presenter?.invalidate) {
+            presenter.invalidate();
         } else if (this.documentPresenter?.invalidate) {
             this.documentPresenter.invalidate();
         }
+    }
+
+    getHostElement() {
+        return this.hostSelector ? document.querySelector(this.hostSelector) : null;
     }
 }

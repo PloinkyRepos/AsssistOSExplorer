@@ -27,6 +27,8 @@ export class ImagePlugin {
         this.invalidate = invalidate;
         const context = getContext(this.element);
         this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
+        this.hostSelector = context.hostSelector || "";
+        this.hostType = context.hostType || "";
         const documentViewPage = document.querySelector("document-view-page");
         this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
         if (!this.documentPresenter || !this.documentPresenter._document) {
@@ -110,9 +112,9 @@ export class ImagePlugin {
     }
 
     async closeModal() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter) {
-            await chapterPresenter.closePlugin("", false);
+        const presenter = this.getHostPresenter();
+        if (presenter?.closePlugin) {
+            await presenter.closePlugin("", false);
         } else {
             this.resetPluginButtonState();
         }
@@ -232,32 +234,36 @@ export class ImagePlugin {
         }
     }
 
-    getChapterPresenter() {
-        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
-        return chapterElement ? chapterElement.webSkelPresenter : null;
-    }
-
     getPluginIconElement() {
-        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
-        if (!chapterElement) {
+        const hostElement = this.getHostElement();
+        if (!hostElement) {
             return null;
         }
-        return chapterElement.querySelector(".icon-container.image-plugin");
+        return hostElement.querySelector(`.icon-container.${this.element.tagName.toLowerCase()}`);
     }
 
     refreshChapterPreviewIcons() {
-        const chapterPresenter = this.getChapterPresenter();
+        const chapterPresenter = this.getHostPresenter();
         if (chapterPresenter?.renderInfoIcons) {
             chapterPresenter.renderInfoIcons();
         }
     }
 
     requestChapterRerender() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter?.invalidate) {
-            chapterPresenter.invalidate();
+        const presenter = this.getHostPresenter();
+        if (presenter?.invalidate) {
+            presenter.invalidate();
         } else if (this.documentPresenter?.invalidate) {
             this.documentPresenter.invalidate();
         }
+    }
+
+    getHostPresenter() {
+        const hostElement = this.getHostElement();
+        return hostElement?.webSkelPresenter || null;
+    }
+
+    getHostElement() {
+        return this.hostSelector ? document.querySelector(this.hostSelector) : null;
     }
 }

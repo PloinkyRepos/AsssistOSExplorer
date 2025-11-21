@@ -1,6 +1,6 @@
 {
     "component": "image-creator",
-    "location": ["paragraph"],
+    "location": [],
     "tooltip": "Image Creator",
     "icon": "/multimedia/IDE-plugins/assets/icons/image.svg",
     "iconPresenter": "SimpleStateIcon",

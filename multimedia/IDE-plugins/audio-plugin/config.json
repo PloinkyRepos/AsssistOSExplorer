@@ -1,6 +1,6 @@
 {
     "component": "audio-plugin",
-    "location": ["chapter"],
+    "location": ["chapter", "paragraph"],
     "tooltip": "Audio Plugin",
     "icon": "/multimedia/IDE-plugins/assets/icons/audio-plugin.svg",
     "presenter": "AudioPlugin",

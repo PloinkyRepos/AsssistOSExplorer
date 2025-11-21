@@ -1,6 +1,6 @@
 {
     "component": "audio-creator",
-    "location": ["paragraph"],
+    "location": [],
     "tooltip": "Audio Creator",
     "icon": "/multimedia/IDE-plugins/assets/icons/audio.svg",
     "iconPresenter": "SimpleStateIcon",

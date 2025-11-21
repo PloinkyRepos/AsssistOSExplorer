@@ -1,6 +1,6 @@
 {
     "component": "video-creator",
-    "location": ["paragraph"],
+    "location": [],
     "tooltip": "Video Creator",
     "icon": "/multimedia/IDE-plugins/assets/icons/video.svg",
     "iconPresenter": "SimpleStateIcon",

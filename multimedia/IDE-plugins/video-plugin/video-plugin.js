@@ -17,6 +17,7 @@ export class VideoPlugin {
         this.invalidate = invalidate;
         const context = getContext(this.element);
         this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
+        this.hostSelector = context.hostSelector || "";
         const documentViewPage = document.querySelector("document-view-page");
         this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
         if (!this.documentPresenter || !this.documentPresenter._document) {
@@ -102,9 +103,9 @@ export class VideoPlugin {
     }
 
     async closeModal() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter) {
-            await chapterPresenter.closePlugin("", false);
+        const presenter = this.getHostPresenter();
+        if (presenter?.closePlugin) {
+            await presenter.closePlugin("", false);
         } else {
             this.resetPluginButtonState();
         }
@@ -273,32 +274,35 @@ export class VideoPlugin {
         }
     }
 
-    getChapterPresenter() {
-        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
-        return chapterElement ? chapterElement.webSkelPresenter : null;
-    }
-
     getPluginIconElement() {
-        const chapterElement = document.querySelector(`chapter-item[data-chapter-id="${this.chapterId}"]`);
-        if (!chapterElement) {
+        const hostElement = this.getHostElement();
+        if (!hostElement) {
             return null;
         }
-        return chapterElement.querySelector(".icon-container.video-plugin");
+        return hostElement.querySelector(`.icon-container.${this.element.tagName.toLowerCase()}`);
+    }
+
+    getHostPresenter() {
+        const hostElement = this.getHostElement();
+        return hostElement?.webSkelPresenter || null;
     }
 
     refreshChapterPreviewIcons() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter?.renderInfoIcons) {
-            chapterPresenter.renderInfoIcons();
-        }
+        const presenter = this.getHostPresenter();
+        presenter?.renderInfoIcons?.();
     }
 
     requestChapterRerender() {
-        const chapterPresenter = this.getChapterPresenter();
-        if (chapterPresenter?.invalidate) {
-            chapterPresenter.invalidate();
+        const presenter = this.getHostPresenter();
+        if (presenter?.invalidate) {
+            presenter.invalidate();
         } else if (this.documentPresenter?.invalidate) {
             this.documentPresenter.invalidate();
         }
     }
+
+    getHostElement() {
+        return this.hostSelector ? document.querySelector(this.hostSelector) : null;
+    }
+}
 }
