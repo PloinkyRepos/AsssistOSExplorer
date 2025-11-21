@@ -1,5 +1,4 @@
 import { uploadBlobFile } from '../utils/blobUpload.js';
-const spaceModule = assistOS.loadModule("space");
 const documentModule = assistOS.loadModule("document");
 
 function getContext(element) {
@@ -33,6 +32,7 @@ export class AudioPlugin {
     async afterRender() {
         this.fileInput = this.element.querySelector(".file-input");
         this.resetFileInputListener();
+        this.audioListElement = this.element.querySelector('.audio-list');
         await this.populateExistingAudio();
     }
 
@@ -68,7 +68,8 @@ export class AudioPlugin {
                         loop: false,
                         start: 0,
                         end: audioPlayer.duration,
-                        path: uploadResult.downloadUrl
+                        path: uploadResult.downloadUrl,
+                        name: uploadResult.filename || file.name
                     };
                     await this.persistAudioAttachment(metadata);
                     await this.invalidateCompiledVideo();
@@ -96,46 +97,6 @@ export class AudioPlugin {
         this.fileInput.click();
     }
 
-    async saveBackgroundSoundChanges() {
-        const loopInput = this.element.querySelector("#loop");
-        const volumeInput = this.element.querySelector("#volume");
-        const audioData = this.chapter.backgroundSound;
-        if (!audioData) {
-            return;
-        }
-        const payload = {
-            ...audioData,
-            path: audioData.url || audioData.path || "",
-            loop: loopInput.checked,
-            volume: parseFloat(volumeInput.value)
-        };
-        try {
-            await this.persistAudioAttachment(payload);
-            await this.invalidateCompiledVideo();
-            await this.populateExistingAudio();
-            assistOS.showToast("Audio updated.", "success");
-        } catch (error) {
-            console.error("Failed to update audio", error);
-            assistOS.showToast("Failed to update audio.", "error");
-        }
-    }
-
-    async deleteBackgroundSound() {
-        if (!this.chapter.backgroundSound) {
-            return;
-        }
-        try {
-            await documentModule.setChapterAudioAttachment(assistOS.space.id, this._document.id, this.chapter.id, null);
-            delete this.chapter.backgroundSound;
-            await this.invalidateCompiledVideo();
-            await this.populateExistingAudio();
-            assistOS.showToast("Audio removed.", "info");
-        } catch (error) {
-            console.error("Failed to delete audio", error);
-            assistOS.showToast("Failed to delete audio.", "error");
-        }
-    }
-
     async closeModal() {
         const chapterPresenter = this.getChapterPresenter();
         if (chapterPresenter) {
@@ -161,90 +122,148 @@ export class AudioPlugin {
     }
 
     async populateExistingAudio() {
-        const audioData = this.getBackgroundSoundData();
-        const audioConfigs = this.element.querySelector(".audio-configs");
-        const audioElement = this.element.querySelector(".audio-plugin-player");
-        const loopInput = this.element.querySelector("#loop");
-        const volumeInput = this.element.querySelector("#volume");
+        await this.renderAudioList();
+    }
 
-        if (!audioData) {
-            audioConfigs.classList.add("hidden");
-            audioElement.classList.add("hidden");
+    getAudioAttachments() {
+        if (Array.isArray(this.chapter.mediaAttachments?.audio) && this.chapter.mediaAttachments.audio.length) {
+            return this.chapter.mediaAttachments.audio;
+        }
+        return this.chapter.backgroundSound ? [this.chapter.backgroundSound] : [];
+    }
+
+    async renderAudioList() {
+        const container = this.audioListElement;
+        if (!container) {
             return;
         }
+        const attachments = this.getAudioAttachments();
+        if (!attachments.length) {
+            container.innerHTML = '<div class="audio-empty-state">No audio tracks yet.</div>';
+            return;
+        }
+        container.innerHTML = attachments.map((item, index) => this.renderAudioItemTemplate(item, index)).join('');
+    }
 
-        audioConfigs.classList.remove("hidden");
-        audioElement.classList.remove("hidden");
-        audioElement.src = audioData.url || await spaceModule.getAudioURL(audioData.id);
-        audioElement.load();
-        audioElement.volume = audioData.volume / 100;
-        audioElement.loop = audioData.loop;
-        loopInput.checked = audioData.loop;
-        volumeInput.value = audioData.volume ?? 50;
-        volumeInput.oninput = () => {
-            audioElement.volume = parseFloat(volumeInput.value) / 100;
+    renderAudioItemTemplate(item, index) {
+        const sanitize = (value) => typeof assistOS?.UI?.sanitize === 'function' ? assistOS.UI.sanitize(value) : value;
+        const escapeAttr = (value) => {
+            if (value === undefined || value === null) {
+                return '';
+            }
+            return String(value).replace(/"/g, '&quot;');
         };
+        const title = sanitize(item.name || item.filename || item.id || `Audio ${index + 1}`);
+        const volume = Number.isFinite(item.volume) ? item.volume : 50;
+        const start = Number.isFinite(item.start) ? item.start : 0;
+        const endValue = Number.isFinite(item.end) ? item.end : (Number.isFinite(item.duration) ? item.duration : 0);
+        const url = sanitize(item.url || item.path || '');
+        const durationLabel = Number.isFinite(item.duration) ? `${item.duration.toFixed(2)}s` : '';
+        const identifier = typeof item.identifier === 'string' ? item.identifier : '';
+        const identifierAttr = escapeAttr(identifier);
+        const saveAction = identifier ? `saveAudioItem ${identifier}` : 'saveAudioItem';
+        const deleteAction = identifier ? `deleteAudioItem ${identifier}` : 'deleteAudioItem';
+        const saveActionAttr = escapeAttr(saveAction);
+        const deleteActionAttr = escapeAttr(deleteAction);
+        return `
+        <div class="audio-item" data-identifier="${identifierAttr}">
+            <div class="audio-item-header">
+                <span>${title}</span>
+                <span>${durationLabel}</span>
+            </div>
+            <audio class="audio-plugin-player" controls preload="metadata" src="${url}"></audio>
+            <div class="audio-item-controls">
+                <label>Volume
+                    <input type="number" min="0" max="100" step="1" data-field="volume" value="${volume}">
+                </label>
+                <label>Start (s)
+                    <input type="number" min="0" step="0.1" data-field="start" value="${start}">
+                </label>
+                <label>End (s)
+                    <input type="number" min="0" step="0.1" data-field="end" value="${endValue}">
+                </label>
+                <label class="audio-item-loop">Loop
+                    <input type="checkbox" data-field="loop" ${item.loop ? 'checked' : ''}>
+                </label>
+            </div>
+            <div class="audio-item-actions">
+                <button class="general-button" type="button" data-local-action="${saveActionAttr}">Save</button>
+                <button class="general-button danger" type="button" data-local-action="${deleteActionAttr}">Delete</button>
+            </div>
+        </div>`;
     }
 
-    getBackgroundSoundData() {
-        if (this.chapter.backgroundSound) {
-            return this.chapter.backgroundSound;
+    async saveAudioItem(triggerElement, identifier) {
+        const container = triggerElement?.closest('.audio-item');
+        const targetIdentifier = identifier || container?.dataset?.identifier;
+        if (!container || !targetIdentifier) {
+            return;
         }
-        const legacyVariable = this.getLegacyAudioVariable();
-        const fallbackSound = this.buildBackgroundSoundFromVariable(legacyVariable);
-        if (fallbackSound) {
-            this.chapter.backgroundSound = fallbackSound;
-            return fallbackSound;
+        const attachments = this.getAudioAttachments();
+        const current = attachments.find((attachment) => attachment.identifier === targetIdentifier);
+        if (!current) {
+            return;
         }
-        delete this.chapter.backgroundSound;
-        return null;
-    }
-
-    getLegacyAudioVariable() {
-        if (!Array.isArray(this.chapter.variables)) {
-            this.chapter.variables = [];
-        }
-        return this.chapter.variables.find((variable) => variable.name === "audio-attachment");
-    }
-
-    buildBackgroundSoundFromVariable(variable) {
-        if (!variable || !variable.options || !variable.options.id) {
-            return null;
-        }
-        const options = variable.options;
-        return {
-            id: options.id,
-            url: typeof variable.value === "string" ? variable.value : "",
-            volume: typeof options.volume === "number" ? options.volume : 50,
-            loop: Boolean(options.loop),
-            duration: typeof options.duration === "number" ? options.duration : 0,
-            start: typeof options.start === "number" ? options.start : 0,
-            end: typeof options.end === "number" ? options.end : (typeof options.duration === "number" ? options.duration : 0)
+        const volumeInput = container.querySelector('[data-field="volume"]');
+        const startInput = container.querySelector('[data-field="start"]');
+        const endInput = container.querySelector('[data-field="end"]');
+        const loopInput = container.querySelector('[data-field="loop"]');
+        const payload = {
+            identifier: targetIdentifier,
+            id: current.id,
+            path: current.url || current.path || '',
+            name: current.name || current.filename,
+            volume: Number.parseFloat(volumeInput?.value ?? '50'),
+            start: Number.parseFloat(startInput?.value ?? '0'),
+            end: Number.parseFloat(endInput?.value ?? '0'),
+            loop: Boolean(loopInput?.checked)
         };
+        try {
+            await this.persistAudioAttachment(payload);
+            await this.invalidateCompiledVideo();
+            await this.populateExistingAudio();
+            assistOS.showToast('Audio updated.', 'success');
+        } catch (error) {
+            console.error('Failed to update audio track', error);
+            assistOS.showToast('Failed to update audio.', 'error');
+        }
+    }
+
+    async deleteAudioItem(triggerElement, identifier) {
+        const container = triggerElement?.closest('.audio-item');
+        const targetIdentifier = identifier || container?.dataset?.identifier;
+        if (!targetIdentifier) {
+            return;
+        }
+        try {
+            await documentModule.deleteChapterAudioAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+            await this.invalidateCompiledVideo();
+            await this.populateExistingAudio();
+            assistOS.showToast('Audio removed.', 'info');
+        } catch (error) {
+            console.error('Failed to delete audio', error);
+            assistOS.showToast('Failed to delete audio.', 'error');
+        }
     }
 
     async persistAudioAttachment(payload) {
-        const backgroundSound = await documentModule.setChapterAudioAttachment(
+        const attachment = await documentModule.setChapterAudioAttachment(
             assistOS.space.id,
             this._document.id,
             this.chapter.id,
             payload
         );
-        if (backgroundSound) {
-            this.chapter.backgroundSound = backgroundSound;
+        if (attachment) {
+            this.chapter.backgroundSound = attachment;
         } else {
             delete this.chapter.backgroundSound;
         }
     }
 
     ensureBackgroundSoundHydrated() {
-        if (this.chapter.backgroundSound) {
-            return;
-        }
-        const legacyVariable = this.getLegacyAudioVariable();
-        const fallbackSound = this.buildBackgroundSoundFromVariable(legacyVariable);
-        if (fallbackSound) {
-            this.chapter.backgroundSound = fallbackSound;
+        this.chapter.mediaAttachments = this.chapter.mediaAttachments || {};
+        if (!Array.isArray(this.chapter.mediaAttachments.audio)) {
+            this.chapter.mediaAttachments.audio = [];
         }
     }
 

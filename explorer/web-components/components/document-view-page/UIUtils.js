@@ -42,6 +42,16 @@ async function deselectItem(itemId, presenter){
     }
     await documentModule.deselectDocumentItem(assistOS.space.id, presenter._document.id, itemId, presenter.selectId);
 }
+const MEDIA_COMMAND_KEYS = new Set(["audio", "video", "image", "effects", "backgroundsound", "backgroundvideo"]);
+
+const isMediaCommandLine = (line = "") => {
+    if (typeof line !== "string") {
+        return false;
+    }
+    const normalized = line.trim().toLowerCase();
+    return normalized.startsWith("@media");
+};
+
 async function selectItem(lockItem, itemId, itemClass, presenter){
     presenter.selectId = generateId(8);
     if(presenter.selectionInterval){
@@ -119,9 +129,9 @@ function renderInfoIcons(element, info = {}) {
         },
         {
             className: "has-commands",
-            src: "./assets/icons/script.svg",
+            src: "./assets/icons/variable.svg",
             alt: "commands",
-            title: "SOPLang commands",
+            title: "Variables (commands)",
             count: info.commandCount
         }
     ].map((icon) => ({
@@ -141,14 +151,26 @@ function countCommandEntries(value) {
         return value
             .split("\n")
             .map((line) => line.trim())
-            .filter(Boolean)
+            .filter((line) => line && !isMediaCommandLine(line))
             .length;
     }
     if (Array.isArray(value)) {
         return value.reduce((total, entry) => total + countCommandEntries(entry), 0);
     }
     if (typeof value === "object") {
-        return Object.values(value).reduce((total, entry) => total + (entry ? 1 : 0), 0);
+        return Object.entries(value).reduce((total, [key, entry]) => {
+            if (!entry) {
+                return total;
+            }
+            const normalizedKey = typeof key === "string" ? key.toLowerCase() : "";
+            if (MEDIA_COMMAND_KEYS.has(normalizedKey)) {
+                return total;
+            }
+            if (typeof entry === "string" || Array.isArray(entry) || (typeof entry === "object" && entry !== null)) {
+                return total + countCommandEntries(entry);
+            }
+            return total + 1;
+        }, 0);
     }
     return 0;
 }

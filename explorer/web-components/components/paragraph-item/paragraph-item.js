@@ -293,8 +293,18 @@ export class ParagraphItem {
     }
 
     getParagraphCommandCount() {
-        const metadataCount = UIUtils.countCommandEntries(this.paragraph.metadata?.commands);
-        const runtimeCount = UIUtils.countCommandEntries(this.paragraph.commands);
+        const metadataCommands = this.paragraph.metadata?.commands;
+        const runtimeCommands = this.paragraph.commands;
+        if (typeof metadataCommands === "string" && typeof runtimeCommands === "string") {
+            if (metadataCommands === runtimeCommands) {
+                return UIUtils.countCommandEntries(runtimeCommands);
+            }
+            if (metadataCommands.trim() === runtimeCommands.trim()) {
+                return UIUtils.countCommandEntries(runtimeCommands);
+            }
+        }
+        const metadataCount = UIUtils.countCommandEntries(metadataCommands);
+        const runtimeCount = UIUtils.countCommandEntries(runtimeCommands);
         return metadataCount + runtimeCount;
     }
 

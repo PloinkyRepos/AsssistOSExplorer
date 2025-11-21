@@ -1,22 +1,55 @@
-.insert-audio{
-    margin-bottom: 10px;
-}
-chapter-background-audio .form-item{
+.audio-plugin-toolbar {
     display: flex;
-    align-items: center;
-    flex-direction: row;
-}
-chapter-background-audio{
-
+    justify-content: flex-end;
+    margin-bottom: 12px;
 }
 
-.bottom-audio-section{
+.audio-list {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.audio-item {
+    border: 1px solid #e0e0e0;
+    border-radius: 8px;
+    padding: 12px;
+    background: #fafafa;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.audio-item-header {
     display: flex;
     justify-content: space-between;
     align-items: center;
-    margin-top: 10px;
+    font-weight: 600;
 }
-chapter-background-audio #volume{
-    width: 60px;
-    margin-left: 5px;
+
+.audio-item-controls {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 8px;
+    align-items: center;
+}
+
+.audio-item-loop {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.audio-item-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+}
+
+.audio-empty-state {
+    text-align: center;
+    color: #7a7a7a;
+    padding: 24px;
+    border: 1px dashed #d5d5d5;
+    border-radius: 8px;
 }

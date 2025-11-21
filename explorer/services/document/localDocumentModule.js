@@ -142,6 +142,7 @@ const MEDIA_ATTACHMENT_TYPES = {
     audio: {
         kind: 'audio',
         stateKey: 'backgroundSound',
+        collectionKey: 'audio',
         modelFactory: (payload) => ({
             id: payload.id ?? '',
             url: payload.path,
@@ -155,6 +156,7 @@ const MEDIA_ATTACHMENT_TYPES = {
     video: {
         kind: 'video',
         stateKey: 'backgroundVideo',
+        collectionKey: 'video',
         modelFactory: (payload) => {
             const model = {
                 id: payload.id ?? '',
@@ -178,6 +180,66 @@ const getAttachmentConfig = (type) => {
     }
     const normalized = String(type).toLowerCase();
     return MEDIA_ATTACHMENT_TYPES[normalized] ?? null;
+};
+
+const collectMediaAttachments = (commandsBlock = '', type) => {
+    const config = getAttachmentConfig(type);
+    if (!config || typeof commandsBlock !== 'string' || !commandsBlock.trim()) {
+        return [];
+    }
+    const attachments = [];
+    const lines = commandsBlock.split('\n');
+    for (const rawLine of lines) {
+        const parsed = parseModernMediaCommand(rawLine);
+        if (!parsed) {
+            continue;
+        }
+        const derivedKind = typeof parsed.kind === 'string'
+            ? parsed.kind.toLowerCase()
+            : (typeof parsed.derivedKind === 'string' ? parsed.derivedKind : config.kind);
+        const kind = derivedKind || config.kind;
+        if (kind !== config.kind) {
+            continue;
+        }
+        const normalized = normalizeAttachmentPayload({
+            id: parsed.id,
+            path: parsed.path ?? parsed.url,
+            volume: parsed.volume,
+            duration: parsed.duration,
+            loop: parsed.loop,
+            start: parsed.start,
+            end: parsed.end,
+            name: parsed.name || parsed.filename
+        });
+        if (!normalized) {
+            continue;
+        }
+        const model = config.modelFactory(normalized);
+        if (model) {
+            model.identifier = parsed.identifier;
+            model.kind = config.kind;
+            model.path = normalized.path;
+            if (normalized.name) {
+                model.name = normalized.name;
+            }
+            attachments.push(model);
+        }
+    }
+    return attachments;
+};
+
+const updateChapterMediaState = (chapter) => {
+    if (!chapter) {
+        return;
+    }
+    const audioAttachments = collectMediaAttachments(chapter.commands ?? '', 'audio');
+    const videoAttachments = collectMediaAttachments(chapter.commands ?? '', 'video');
+    chapter.mediaAttachments = {
+        audio: audioAttachments,
+        video: videoAttachments
+    };
+    chapter.backgroundSound = audioAttachments[0] ?? null;
+    chapter.backgroundVideo = videoAttachments[0] ?? null;
 };
 
 const generateMediaCommandIdentifier = (type = '') => {
@@ -311,6 +373,12 @@ const normalizeAttachmentPayload = (payload = {}) => {
     } else if (normalized.duration !== undefined) {
         normalized.end = normalized.duration;
     }
+    const name = typeof payload.name === 'string' && payload.name.trim()
+        ? payload.name.trim()
+        : (typeof payload.filename === 'string' && payload.filename.trim() ? payload.filename.trim() : null);
+    if (name) {
+        normalized.name = name;
+    }
     return normalized;
 };
 
@@ -326,11 +394,12 @@ const createAttachmentModel = (type, payload = {}) => {
     return config.modelFactory(normalized);
 };
 
-const stripAttachmentCommand = (commandsBlock = '', type) => {
+const stripAttachmentCommand = (commandsBlock = '', type, identifier = null) => {
     const config = getAttachmentConfig(type);
     if (!config || typeof commandsBlock !== 'string') {
         return typeof commandsBlock === 'string' ? commandsBlock : '';
     }
+    const targetId = identifier ? String(identifier).trim() : null;
     const lines = commandsBlock.split('\n');
     const filtered = lines.filter((line) => {
         const trimmed = line.trim();
@@ -340,11 +409,16 @@ const stripAttachmentCommand = (commandsBlock = '', type) => {
         if (trimmed.toLowerCase().startsWith('@media')) {
             const parsed = parseModernMediaCommand(trimmed);
             if (parsed) {
+                if (targetId && parsed.identifier === targetId) {
+                    return false;
+                }
                 const derivedKind = typeof parsed.kind === 'string'
                     ? parsed.kind.toLowerCase()
                     : (typeof parsed.derivedKind === 'string' ? parsed.derivedKind : config.kind);
                 const kind = derivedKind || config.kind;
-                return kind !== config.kind;
+                if (!targetId && kind === config.kind) {
+                    return false;
+                }
             }
         }
         return true;
@@ -360,9 +434,33 @@ const ensureTrailingNewline = (value = '') => {
     return value.endsWith('\n') ? value : `${value}\n`;
 };
 
-const appendAttachmentCommand = (commandsBlock = '', type, payload = null) => {
+const findAttachmentLineIndex = (commandsBlock = '', identifier = '') => {
+    if (!identifier || typeof commandsBlock !== 'string' || !commandsBlock.trim()) {
+        return null;
+    }
+    const normalizedIdentifier = String(identifier).trim();
+    if (!normalizedIdentifier) {
+        return null;
+    }
+    const lines = commandsBlock.split('\n');
+    for (let index = 0; index < lines.length; index++) {
+        const parsed = parseModernMediaCommand(lines[index]);
+        if (parsed?.identifier === normalizedIdentifier) {
+            return index;
+        }
+    }
+    return null;
+};
+
+const appendAttachmentCommand = (commandsBlock = '', type, payload = null, options = {}) => {
     const config = getAttachmentConfig(type);
-    const cleaned = stripAttachmentCommand(commandsBlock ?? '', type).trimEnd();
+    const identifierHint = options.identifier || payload?.identifier;
+    const baseBlock = typeof commandsBlock === 'string' ? commandsBlock : '';
+    const targetIdentifier = identifierHint ? String(identifierHint).trim() : '';
+    const insertionIndex = targetIdentifier ? findAttachmentLineIndex(baseBlock, targetIdentifier) : null;
+    const cleaned = targetIdentifier
+        ? stripAttachmentCommand(baseBlock, type, targetIdentifier).trimEnd()
+        : baseBlock.trimEnd();
     if (!config) {
         return ensureTrailingNewline(cleaned);
     }
@@ -373,7 +471,9 @@ const appendAttachmentCommand = (commandsBlock = '', type, payload = null) => {
     if (!normalized) {
         return ensureTrailingNewline(cleaned);
     }
-    const identifier = generateMediaCommandIdentifier(config.kind);
+    const identifier = identifierHint && identifierHint.startsWith('@media')
+        ? identifierHint
+        : generateMediaCommandIdentifier(config.kind);
     const pairs = [
         ['id', normalized.id ?? extractMediaIdFromPath(normalized.path)],
         ['path', normalized.path]
@@ -400,20 +500,14 @@ const appendAttachmentCommand = (commandsBlock = '', type, payload = null) => {
         .map(([key, value]) => `"${key}" ${formatValue(value)}`)
         .join(' ')}`;
 
+    if (insertionIndex !== null) {
+        const cleanedLines = cleaned ? cleaned.split('\n') : [];
+        const boundedIndex = Math.max(0, Math.min(insertionIndex, cleanedLines.length));
+        cleanedLines.splice(boundedIndex, 0, commandLine);
+        return ensureTrailingNewline(cleanedLines.join('\n'));
+    }
     const base = cleaned ? ensureTrailingNewline(cleaned) : '';
     return ensureTrailingNewline(`${base}${commandLine}`);
-};
-
-const deriveChapterMediaAttachment = (type, chapter = {}, metadata = {}) => {
-    const payload = findAttachmentPayloadInCommands(chapter.commands, type)
-        ?? findAttachmentPayloadInCommands(metadata.commands, type);
-    if (payload) {
-        const model = createAttachmentModel(type, payload);
-        if (model) {
-            return model;
-        }
-    }
-    return null;
 };
 
 const setChapterMediaAttachment = async (type, documentIdOrPath, chapterId, payload) => {
@@ -430,23 +524,54 @@ const setChapterMediaAttachment = async (type, documentIdOrPath, chapterId, payl
     if (payload && !normalizedPayload) {
         throw new Error(`Invalid ${type} payload supplied. Expected at least a path/url field.`);
     }
-    const updatedCommands = appendAttachmentCommand(chapter.commands ?? '', type, normalizedPayload);
+    if (!normalizedPayload) {
+        const updatedCommands = stripAttachmentCommand(chapter.commands ?? '', type, payload?.identifier || null);
+        chapter.commands = updatedCommands;
+        if (chapter.metadata) {
+            chapter.metadata.commands = updatedCommands;
+        }
+        updateChapterMediaState(chapter);
+        await persistDocument(documentIdOrPath);
+        return null;
+    }
+    const options = {};
+    if (payload?.identifier) {
+        options.identifier = payload.identifier;
+    }
+    const updatedCommands = appendAttachmentCommand(chapter.commands ?? '', type, normalizedPayload, options);
     chapter.commands = updatedCommands;
     if (chapter.metadata) {
         chapter.metadata.commands = updatedCommands;
     }
-    const stateKey = config.stateKey;
-    if (normalizedPayload && stateKey) {
-        const model = config.modelFactory(normalizedPayload);
-        if (model) {
-            chapter[stateKey] = model;
-        }
-    }
-    if (!normalizedPayload && stateKey) {
-        delete chapter[stateKey];
+    updateChapterMediaState(chapter);
+    const attachments = chapter.mediaAttachments?.[config.collectionKey] ?? [];
+    let result = null;
+    if (normalizedPayload) {
+        const targetId = options.identifier || attachments[attachments.length - 1]?.identifier;
+        result = attachments.find((item) => item.identifier === targetId) ?? attachments[attachments.length - 1] ?? null;
     }
     await persistDocument(documentIdOrPath);
-    return stateKey ? (chapter[stateKey] ?? null) : null;
+    return result;
+};
+
+const deleteChapterMediaAttachment = async (type, documentIdOrPath, chapterId, identifier = null) => {
+    const config = getAttachmentConfig(type);
+    if (!config) {
+        throw new Error(`Unsupported attachment type "${type}".`);
+    }
+    const document = await getDocumentModel(documentIdOrPath);
+    const chapter = document.chapters.find((item) => item.id === chapterId);
+    if (!chapter) {
+        throw new Error(`Chapter ${chapterId} not found.`);
+    }
+    const updatedCommands = stripAttachmentCommand(chapter.commands ?? '', type, identifier || null);
+    chapter.commands = updatedCommands;
+    if (chapter.metadata) {
+        chapter.metadata.commands = updatedCommands;
+    }
+    updateChapterMediaState(chapter);
+    await persistDocument(documentIdOrPath);
+    return true;
 };
 
 const encodeSOPCode = (str) => {
@@ -615,8 +740,21 @@ const encodeBase64 = (value) => {
 
 const clone = (value) => JSON.parse(JSON.stringify(value));
 
-const deriveChapterBackgroundSound = (chapter = {}, metadata = {}) => deriveChapterMediaAttachment('audio', chapter, metadata);
-const deriveChapterBackgroundVideo = (chapter = {}, metadata = {}) => deriveChapterMediaAttachment('video', chapter, metadata);
+const deriveChapterBackgroundSound = (chapter = {}, metadata = {}) => {
+    const list = collectMediaAttachments(chapter.commands ?? '', 'audio');
+    if (list.length > 0) {
+        return list[0];
+    }
+    return null;
+};
+
+const deriveChapterBackgroundVideo = (chapter = {}, metadata = {}) => {
+    const list = collectMediaAttachments(chapter.commands ?? '', 'video');
+    if (list.length > 0) {
+        return list[0];
+    }
+    return null;
+};
 
 const createCommentDefaults = (comments = {}) => ({
     messages: [],
@@ -705,7 +843,7 @@ const hydrateChapterModel = (chapter, index) => {
     if (backgroundVideo) {
         chapterInstance.backgroundVideo = backgroundVideo;
     }
-
+    updateChapterMediaState(chapterInstance);
     return chapterInstance;
 };
 
@@ -1237,6 +1375,12 @@ const documentModule = {
     },
     async setChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
         return setChapterMediaAttachment('video', documentIdOrPath, chapterId, payload);
+    },
+    async deleteChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
+        return deleteChapterMediaAttachment('audio', documentIdOrPath, chapterId, identifier);
+    },
+    async deleteChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
+        return deleteChapterMediaAttachment('video', documentIdOrPath, chapterId, identifier);
     },
     async addParagraph(_spaceId, chapterId, paragraphText = '', metadata = null, paragraphType = 'markdown', position = null) {
         let documentReference;

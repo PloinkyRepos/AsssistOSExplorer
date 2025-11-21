@@ -337,12 +337,25 @@ export class ChapterItem {
 
     getChapterMediaCount() {
         let count = 0;
-        if (this.chapter.backgroundSound) {
+        const audioAttachments = Array.isArray(this.chapter.mediaAttachments?.audio)
+            ? this.chapter.mediaAttachments.audio.length
+            : 0;
+        const videoAttachments = Array.isArray(this.chapter.mediaAttachments?.video)
+            ? this.chapter.mediaAttachments.video.length
+            : 0;
+
+        if (audioAttachments > 0) {
+            count += audioAttachments;
+        } else if (this.chapter.backgroundSound) {
             count += 1;
         }
-        if (this.chapter.backgroundVideo) {
+
+        if (videoAttachments > 0) {
+            count += videoAttachments;
+        } else if (this.chapter.backgroundVideo) {
             count += 1;
         }
+
         if (Array.isArray(this.chapter.attachments)) {
             count += this.chapter.attachments.length;
         }
@@ -353,8 +366,18 @@ export class ChapterItem {
     }
 
     getChapterCommandCount() {
-        const metadataCount = UIUtils.countCommandEntries(this.chapter.metadata?.commands);
-        const inlineCount = UIUtils.countCommandEntries(this.chapter.commands);
+        const metadataCommands = this.chapter.metadata?.commands;
+        const inlineCommands = this.chapter.commands;
+        if (typeof metadataCommands === "string" && typeof inlineCommands === "string") {
+            if (metadataCommands === inlineCommands) {
+                return UIUtils.countCommandEntries(inlineCommands);
+            }
+            if (metadataCommands.trim() === inlineCommands.trim()) {
+                return UIUtils.countCommandEntries(inlineCommands);
+            }
+        }
+        const metadataCount = UIUtils.countCommandEntries(metadataCommands);
+        const inlineCount = UIUtils.countCommandEntries(inlineCommands);
         return metadataCount + inlineCount;
     }
 
