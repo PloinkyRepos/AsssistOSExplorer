@@ -1,4 +1,4 @@
-import { uploadBlobFile } from '../utils/blobUpload.js';
+import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readVideoMetadata } from '../utils/mediaUpload.js';
 const documentModule = assistOS.loadModule("document");
 
 function getContext(element) {
@@ -60,57 +60,45 @@ export class VideoPlugin {
         this.fileInput.addEventListener("change", this.uploadVideoAttachment.bind(this), { once: true });
     }
 
-    uploadVideoAttachment(event) {
-        const file = event.target.files[0];
-        const maxFileSize = 500 * 1024 * 1024;
-        if (!file) {
-            return;
-        }
-        if (file.size > maxFileSize) {
-            return showApplicationError("The file is too large.", "Maximum file size is 500MB.", "");
-        }
-        const handleError = (error) => {
+    async uploadVideoAttachment(event) {
+        const file = event?.target?.files?.[0];
+        try {
+            const { uploadResult, metadata } = await processMediaUpload({
+                file,
+                maxFileSize: 500 * 1024 * 1024,
+                metadataReader: readVideoMetadata
+            });
+            const duration = Number.isFinite(metadata?.duration) ? metadata.duration : 0;
+            const payload = {
+                id: uploadResult.id ?? uploadResult.filename ?? `video-${Date.now()}`,
+                loop: false,
+                start: 0,
+                end: duration,
+                duration,
+                volume: 100,
+                path: uploadResult.downloadUrl,
+                name: uploadResult.filename || file?.name
+            };
+            await this.persistVideoAttachment(payload);
+            await this.invalidateCompiledVideo();
+            await this.populateExistingVideos();
+            assistOS.showToast("Video saved.", "success");
+        } catch (error) {
+            if (error?.code === MEDIA_UPLOAD_ERROR_CODES.NO_FILE) {
+                return;
+            }
+            if (error?.code === MEDIA_UPLOAD_ERROR_CODES.TOO_LARGE) {
+                showApplicationError("The file is too large.", "Maximum file size is 500MB.", "");
+                return;
+            }
             console.error("Failed to upload video", error);
             assistOS.showToast("Failed to upload video.", "error");
+        } finally {
+            if (this.fileInput) {
+                this.fileInput.value = "";
+            }
             this.resetFileInputListener();
-        };
-        try {
-            const uploadPromise = uploadBlobFile(file);
-            const videoElement = document.createElement("video");
-            const objectUrl = URL.createObjectURL(file);
-            videoElement.addEventListener("loadedmetadata", async () => {
-                try {
-                    const uploadResult = await uploadPromise;
-                    const metadata = {
-                        id: uploadResult.id ?? uploadResult.filename ?? `video-${Date.now()}`,
-                        loop: false,
-                        start: 0,
-                        end: videoElement.duration,
-                        duration: videoElement.duration,
-                        volume: 100,
-                        path: uploadResult.downloadUrl,
-                        name: uploadResult.filename || file.name
-                    };
-                    await this.persistVideoAttachment(metadata);
-                    await this.invalidateCompiledVideo();
-                    await this.populateExistingVideos();
-                    this.resetFileInputListener();
-                    assistOS.showToast("Video saved.", "success");
-                } catch (error) {
-                    handleError(error);
-                } finally {
-                    URL.revokeObjectURL(objectUrl);
-                }
-            });
-            videoElement.addEventListener("error", () => {
-                URL.revokeObjectURL(objectUrl);
-                handleError(new Error("Unable to read video metadata."));
-            });
-            videoElement.src = objectUrl;
-        } catch (error) {
-            handleError(error);
         }
-        this.fileInput.value = "";
     }
 
     insertVideo() {

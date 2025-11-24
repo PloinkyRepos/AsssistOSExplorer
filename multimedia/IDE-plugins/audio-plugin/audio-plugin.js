@@ -1,4 +1,4 @@
-import { uploadBlobFile } from '../utils/blobUpload.js';
+import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readAudioMetadata } from '../utils/mediaUpload.js';
 const documentModule = assistOS.loadModule("document");
 
 function getContext(element) {
@@ -59,57 +59,45 @@ export class AudioPlugin {
         this.fileInput.addEventListener("change", this.uploadBackgroundSound.bind(this), { once: true });
     }
 
-    uploadBackgroundSound(event) {
-        const file = event.target.files[0];
-        const maxFileSize = 100 * 1024 * 1024;
-        if (!file) {
-            return;
-        }
-        if (file.size > maxFileSize) {
-            return showApplicationError("The file is too large.", "Maximum file size is 100MB.", "");
-        }
-        const handleError = (error) => {
+    async uploadBackgroundSound(event) {
+        const file = event?.target?.files?.[0];
+        try {
+            const { uploadResult, metadata } = await processMediaUpload({
+                file,
+                maxFileSize: 100 * 1024 * 1024,
+                metadataReader: readAudioMetadata
+            });
+            const duration = Number.isFinite(metadata?.duration) ? metadata.duration : 0;
+            const payload = {
+                id: uploadResult.id ?? uploadResult.filename ?? `audio-${Date.now()}`,
+                volume: 50,
+                duration,
+                loop: false,
+                start: 0,
+                end: duration,
+                path: uploadResult.downloadUrl,
+                name: uploadResult.filename || file?.name
+            };
+            await this.persistAudioAttachment(payload);
+            await this.invalidateCompiledVideo();
+            await this.populateExistingAudio();
+            assistOS.showToast("Audio saved.", "success");
+        } catch (error) {
+            if (error?.code === MEDIA_UPLOAD_ERROR_CODES.NO_FILE) {
+                return;
+            }
+            if (error?.code === MEDIA_UPLOAD_ERROR_CODES.TOO_LARGE) {
+                showApplicationError("The file is too large.", "Maximum file size is 100MB.", "");
+                return;
+            }
             console.error("Failed to upload audio", error);
             assistOS.showToast("Failed to upload audio.", "error");
+        } finally {
+            if (this.fileInput) {
+                this.fileInput.value = "";
+            }
             this.resetFileInputListener();
-        };
-        try {
-            const uploadPromise = uploadBlobFile(file);
-            const audioPlayer = new Audio();
-            const objectUrl = URL.createObjectURL(file);
-            audioPlayer.addEventListener("loadedmetadata", async () => {
-                try {
-                    const uploadResult = await uploadPromise;
-                    const metadata = {
-                        id: uploadResult.id ?? uploadResult.filename ?? `audio-${Date.now()}`,
-                        volume: 50,
-                        duration: audioPlayer.duration,
-                        loop: false,
-                        start: 0,
-                        end: audioPlayer.duration,
-                        path: uploadResult.downloadUrl,
-                        name: uploadResult.filename || file.name
-                    };
-                    await this.persistAudioAttachment(metadata);
-                    await this.invalidateCompiledVideo();
-                    await this.populateExistingAudio();
-                    this.resetFileInputListener();
-                    assistOS.showToast("Audio saved.", "success");
-                } catch (error) {
-                    handleError(error);
-                } finally {
-                    URL.revokeObjectURL(objectUrl);
-                }
-            });
-            audioPlayer.addEventListener("error", () => {
-                URL.revokeObjectURL(objectUrl);
-                handleError(new Error("Unable to read audio metadata."));
-            });
-            audioPlayer.src = objectUrl;
-        } catch (error) {
-            handleError(error);
         }
-        this.fileInput.value = "";
     }
 
     insertAudio() {
