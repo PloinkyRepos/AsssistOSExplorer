@@ -26,12 +26,20 @@
     align-items: center;
     font-weight: 600;
 }
-
+.player-container{
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
 .audio-item-controls {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
     gap: 8px;
     align-items: center;
+}
+
+.audio-item-controls label input {
+    width: 100%;
 }
 
 .audio-item-loop {

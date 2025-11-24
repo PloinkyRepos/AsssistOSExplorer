@@ -161,6 +161,7 @@ export class AudioPlugin {
             return;
         }
         container.innerHTML = attachments.map((item, index) => this.renderAudioItemTemplate(item, index)).join('');
+        this.setupAudioItemInteractions();
     }
 
     renderAudioItemTemplate(item, index) {
@@ -183,13 +184,26 @@ export class AudioPlugin {
         const deleteAction = identifier ? `deleteAudioItem ${identifier}` : 'deleteAudioItem';
         const saveActionAttr = escapeAttr(saveAction);
         const deleteActionAttr = escapeAttr(deleteAction);
+        const initialState = {
+            volume,
+            start,
+            end: endValue,
+            loop: Boolean(item.loop)
+        };
+        const initialStateAttr = escapeAttr(JSON.stringify(initialState));
         return `
-        <div class="audio-item" data-identifier="${identifierAttr}">
+        <div class="audio-item" data-identifier="${identifierAttr}" data-initial-state="${initialStateAttr}">
             <div class="audio-item-header">
                 <span>${title}</span>
                 <span>${durationLabel}</span>
             </div>
-            <audio class="audio-plugin-player" controls preload="metadata" src="${url}"></audio>
+            <section class="player-container">
+                   <audio class="audio-plugin-player" controls preload="metadata" src="${url}"></audio>
+                    <label class="audio-item-loop">Loop
+                    <input type="checkbox" data-field="loop" ${item.loop ? 'checked' : ''}>
+                </label>
+            </section>
+     
             <div class="audio-item-controls">
                 <label>Volume
                     <input type="number" min="0" max="100" step="1" data-field="volume" value="${volume}">
@@ -200,12 +214,10 @@ export class AudioPlugin {
                 <label>End (s)
                     <input type="number" min="0" step="0.1" data-field="end" value="${endValue}">
                 </label>
-                <label class="audio-item-loop">Loop
-                    <input type="checkbox" data-field="loop" ${item.loop ? 'checked' : ''}>
-                </label>
+               
             </div>
             <div class="audio-item-actions">
-                <button class="general-button" type="button" data-local-action="${saveActionAttr}">Save</button>
+                <button class="general-button" type="button" data-local-action="${saveActionAttr}" disabled>Save</button>
                 <button class="general-button danger" type="button" data-local-action="${deleteActionAttr}">Delete</button>
             </div>
         </div>`;
@@ -239,12 +251,100 @@ export class AudioPlugin {
         try {
             await this.persistAudioAttachment(payload);
             await this.invalidateCompiledVideo();
-            await this.populateExistingAudio();
+            this.refreshChapterPreviewIcons();
+            this.updateAudioAttachmentModel(current, payload);
+            const nextState = {
+                volume: payload.volume,
+                start: payload.start,
+                end: payload.end,
+                loop: payload.loop
+            };
+            this.setAudioItemInitialState(container, nextState);
+            const saveButton = container.querySelector('[data-local-action^="saveAudioItem"]');
+            if (saveButton) {
+                this.updateAudioItemSaveState(container, saveButton);
+            }
             assistOS.showToast('Audio updated.', 'success');
         } catch (error) {
             console.error('Failed to update audio track', error);
             assistOS.showToast('Failed to update audio.', 'error');
         }
+    }
+
+    setupAudioItemInteractions() {
+        if (!this.audioListElement) {
+            return;
+        }
+        const items = Array.from(this.audioListElement.querySelectorAll('.audio-item'));
+        items.forEach((item) => {
+            const saveButton = item.querySelector('[data-local-action^="saveAudioItem"]');
+            if (!saveButton) {
+                return;
+            }
+            const updateState = () => this.updateAudioItemSaveState(item, saveButton);
+            item.querySelectorAll('input').forEach((input) => {
+                input.addEventListener('input', updateState);
+                input.addEventListener('change', updateState);
+            });
+            updateState();
+        });
+    }
+
+    updateAudioItemSaveState(container, button) {
+        if (!container || !button) {
+            return;
+        }
+        const initialState = this.getAudioItemInitialState(container);
+        const currentState = this.getAudioItemCurrentState(container);
+        const fields = ['volume', 'start', 'end', 'loop'];
+        const isDirty = fields.some((field) => initialState[field] !== currentState[field]);
+        button.disabled = !isDirty;
+    }
+
+    getAudioItemInitialState(container) {
+        const raw = container?.dataset?.initialState || '';
+        if (!raw) {
+            return {};
+        }
+        try {
+            return JSON.parse(raw);
+        } catch (_) {
+            return {};
+        }
+    }
+
+    getAudioItemCurrentState(container) {
+        const parseNumber = (input, fallback) => {
+            const value = Number.parseFloat(input?.value ?? '');
+            return Number.isFinite(value) ? value : fallback;
+        };
+        return {
+            volume: parseNumber(container.querySelector('[data-field="volume"]'), 50),
+            start: parseNumber(container.querySelector('[data-field="start"]'), 0),
+            end: parseNumber(container.querySelector('[data-field="end"]'), 0),
+            loop: Boolean(container.querySelector('[data-field="loop"]')?.checked)
+        };
+    }
+
+    setAudioItemInitialState(container, state) {
+        if (!container) {
+            return;
+        }
+        try {
+            container.dataset.initialState = JSON.stringify(state);
+        } catch (_) {
+            container.dataset.initialState = '';
+        }
+    }
+
+    updateAudioAttachmentModel(target, payload) {
+        if (!target) {
+            return;
+        }
+        target.volume = payload.volume;
+        target.start = payload.start;
+        target.end = payload.end;
+        target.loop = payload.loop;
     }
 
     async deleteAudioItem(triggerElement, identifier) {

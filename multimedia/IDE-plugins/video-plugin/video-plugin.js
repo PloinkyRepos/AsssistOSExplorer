@@ -152,6 +152,7 @@ export class VideoPlugin {
             return;
         }
         container.innerHTML = attachments.map((item, index) => this.renderVideoItemTemplate(item, index)).join('');
+        this.setupVideoItemInteractions();
     }
 
     renderVideoItemTemplate(item, index) {
@@ -174,13 +175,23 @@ export class VideoPlugin {
         const deleteAction = identifier ? `deleteVideoItem ${identifier}` : 'deleteVideoItem';
         const saveActionAttr = escapeAttr(saveAction);
         const deleteActionAttr = escapeAttr(deleteAction);
+        const initialState = {
+            volume,
+            start,
+            end: endValue,
+            loop: Boolean(item.loop)
+        };
+        const initialStateAttr = escapeAttr(JSON.stringify(initialState));
         return `
-        <div class="video-item" data-identifier="${identifierAttr}">
+        <div class="video-item" data-identifier="${identifierAttr}" data-initial-state="${initialStateAttr}">
             <div class="video-item-header">
                 <span>${title}</span>
                 <span>${durationLabel}</span>
             </div>
             <video controls preload="metadata" src="${url}"></video>
+                            <label>Loop
+                    <input type="checkbox" data-field="loop" ${item.loop ? 'checked' : ''}>
+                </label>
             <div class="video-item-controls">
                 <label>Volume
                     <input type="number" min="0" max="100" step="1" data-field="volume" value="${volume}">
@@ -191,12 +202,9 @@ export class VideoPlugin {
                 <label>End (s)
                     <input type="number" min="0" step="0.1" data-field="end" value="${endValue}">
                 </label>
-                <label>Loop
-                    <input type="checkbox" data-field="loop" ${item.loop ? 'checked' : ''}>
-                </label>
             </div>
             <div class="video-item-actions">
-                <button class="general-button" type="button" data-local-action="${saveActionAttr}">Save</button>
+                <button class="general-button" type="button" data-local-action="${saveActionAttr}" disabled>Save</button>
                 <button class="general-button danger" type="button" data-local-action="${deleteActionAttr}">Delete</button>
             </div>
         </div>`;
@@ -230,12 +238,100 @@ export class VideoPlugin {
         try {
             await this.persistVideoAttachment(payload);
             await this.invalidateCompiledVideo();
-            await this.populateExistingVideos();
+            this.refreshChapterPreviewIcons();
+            this.updateVideoAttachmentModel(current, payload);
+            const nextState = {
+                volume: payload.volume,
+                start: payload.start,
+                end: payload.end,
+                loop: payload.loop
+            };
+            this.setVideoItemInitialState(container, nextState);
+            const saveButton = container.querySelector('[data-local-action^="saveVideoItem"]');
+            if (saveButton) {
+                this.updateVideoItemSaveState(container, saveButton);
+            }
             assistOS.showToast('Video updated.', 'success');
         } catch (error) {
             console.error('Failed to update video track', error);
             assistOS.showToast('Failed to update video.', 'error');
         }
+    }
+
+    setupVideoItemInteractions() {
+        if (!this.videoListElement) {
+            return;
+        }
+        const items = Array.from(this.videoListElement.querySelectorAll('.video-item'));
+        items.forEach((item) => {
+            const saveButton = item.querySelector('[data-local-action^="saveVideoItem"]');
+            if (!saveButton) {
+                return;
+            }
+            const updateState = () => this.updateVideoItemSaveState(item, saveButton);
+            item.querySelectorAll('input').forEach((input) => {
+                input.addEventListener('input', updateState);
+                input.addEventListener('change', updateState);
+            });
+            updateState();
+        });
+    }
+
+    updateVideoItemSaveState(container, button) {
+        if (!container || !button) {
+            return;
+        }
+        const initialState = this.getVideoItemInitialState(container);
+        const currentState = this.getVideoItemCurrentState(container);
+        const fields = ['volume', 'start', 'end', 'loop'];
+        const isDirty = fields.some((field) => initialState[field] !== currentState[field]);
+        button.disabled = !isDirty;
+    }
+
+    getVideoItemInitialState(container) {
+        const raw = container?.dataset?.initialState || '';
+        if (!raw) {
+            return {};
+        }
+        try {
+            return JSON.parse(raw);
+        } catch (_) {
+            return {};
+        }
+    }
+
+    getVideoItemCurrentState(container) {
+        const parseNumber = (input, fallback) => {
+            const value = Number.parseFloat(input?.value ?? '');
+            return Number.isFinite(value) ? value : fallback;
+        };
+        return {
+            volume: parseNumber(container.querySelector('[data-field="volume"]'), 100),
+            start: parseNumber(container.querySelector('[data-field="start"]'), 0),
+            end: parseNumber(container.querySelector('[data-field="end"]'), 0),
+            loop: Boolean(container.querySelector('[data-field="loop"]')?.checked)
+        };
+    }
+
+    setVideoItemInitialState(container, state) {
+        if (!container) {
+            return;
+        }
+        try {
+            container.dataset.initialState = JSON.stringify(state);
+        } catch (_) {
+            container.dataset.initialState = '';
+        }
+    }
+
+    updateVideoAttachmentModel(target, payload) {
+        if (!target) {
+            return;
+        }
+        target.volume = payload.volume;
+        target.start = payload.start;
+        target.end = payload.end;
+        target.loop = payload.loop;
     }
 
     async deleteVideoItem(triggerElement, identifier) {
