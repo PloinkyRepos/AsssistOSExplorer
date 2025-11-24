@@ -4,6 +4,10 @@
   "description": "AssistOS MCP file explorer agent",
   "type": "module",
   "main": "index.js",
+  "scripts": {
+    "test": "npm run test:unit",
+    "test:unit": "node --test tests/unit"
+  },
   "license": "MIT",
   "dependencies": {
     "@modelcontextprotocol/server-filesystem": "^2025.8.21",

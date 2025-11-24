@@ -1,5 +1,20 @@
 import { createAgentClient } from '/MCPBrowserClient.js';
 import documentModule from './document/localDocumentModule.js';
+import {
+    createDocumentMediaStorageResolver,
+    resolveDocumentContext
+} from './storage/documentMediaStorageResolver.js';
+import {
+    createFontFamilyMap,
+    createFontMap,
+    createTextIndentMap,
+    customTrim,
+    escapeHtml,
+    normalizeSpaces,
+    reverseQuerySelector,
+    unescapeHtml
+} from './document/documentFormatting.js';
+import { createMediaClient } from './media/mediaClient.js';
 
 const DEFAULT_EMAIL = 'local@example.com';
 const DEFAULT_AGENT_IMAGE = './assets/icons/person.svg';
@@ -19,254 +34,6 @@ const DEFAULT_CUSTOM_TYPES = [
     'list'
 ];
 const EXPLORER_AGENT_ID = 'explorer';
-const DOCUMENT_MEDIA_URL_ROOT = 'document-multimedia';
-const AUDIO_FILE_EXTENSION = '.mp3';
-const VIDEO_FILE_EXTENSION = '.mp4';
-
-const normalizeFsPath = (value) => (typeof value === 'string' ? value.replace(/\\/g, '/').trim() : '');
-const trimSlashes = (value, { leading = true, trailing = true } = {}) => {
-    if (typeof value !== 'string') {
-        return '';
-    }
-    let result = value;
-    if (trailing) {
-        result = result.replace(/\/+$/, '');
-    }
-    if (leading) {
-        result = result.replace(/^\/+/, '');
-    }
-    return result;
-};
-const splitLines = (value) => (typeof value === 'string'
-    ? value
-        .split(/\r?\n/)
-        .map((line) => line.trim())
-        .filter(Boolean)
-    : []);
-
-const getConfiguredDocumentStorageRoot = () => {
-    const providers = [
-        () => (typeof globalThis !== 'undefined' ? globalThis.DOCUMENT_STORAGE_ROOT : undefined),
-        () => (typeof globalThis !== 'undefined' ? globalThis.AssistOS?.config?.DOCUMENT_STORAGE_ROOT : undefined),
-        () => (typeof globalThis !== 'undefined' ? globalThis.assistOS?.config?.DOCUMENT_STORAGE_ROOT : undefined),
-        () => {
-            if (typeof document === 'undefined') {
-                return undefined;
-            }
-            return document.querySelector?.('meta[name="document-storage-root"]')?.content;
-        },
-        () => (typeof process !== 'undefined' ? process.env?.DOCUMENT_STORAGE_ROOT : undefined)
-    ];
-
-    for (const getValue of providers) {
-        try {
-            const value = getValue();
-            if (typeof value === 'string' && value.trim()) {
-                return trimSlashes(value.trim(), { trailing: true, leading: false });
-            }
-        } catch (error) {
-            console.warn('[assistOS] Failed to evaluate DOCUMENT_STORAGE_ROOT provider:', error);
-        }
-    }
-    return null;
-};
-
-const createDocumentMediaStorageResolver = (callExplorerTool) => {
-    let cachedRoot = null;
-    let inflight = null;
-
-    const resolveWorkspaceRoot = async () => {
-        const response = await callExplorerTool('list_allowed_directories', {});
-        const lines = splitLines(response?.text ?? '');
-        for (const line of lines) {
-            if (/^allowed directories:?$/i.test(line)) {
-                continue;
-            }
-            if (line) {
-                return line;
-            }
-        }
-        return null;
-    };
-
-    const locateMediaDirectory = async (workspaceRoot) => {
-        const response = await callExplorerTool('search_files', { path: '/', pattern: DOCUMENT_MEDIA_URL_ROOT });
-        const normalizedWorkspace = trimSlashes(normalizeFsPath(workspaceRoot), { leading: false, trailing: true });
-        const lines = splitLines(response?.text ?? '');
-        for (const candidate of lines) {
-            const normalizedCandidate = normalizeFsPath(candidate);
-            if (!normalizedCandidate.toLowerCase().endsWith(`/${DOCUMENT_MEDIA_URL_ROOT}`)) {
-                continue;
-            }
-            if (!normalizedCandidate.startsWith(normalizedWorkspace)) {
-                continue;
-            }
-            const relative = trimSlashes(normalizedCandidate.slice(normalizedWorkspace.length), { leading: true, trailing: true });
-            if (relative) {
-                return relative;
-            }
-        }
-        return null;
-    };
-
-    return async () => {
-        if (cachedRoot) {
-            return cachedRoot;
-        }
-        if (inflight) {
-            return inflight;
-        }
-
-        inflight = (async () => {
-            const configuredRoot = getConfiguredDocumentStorageRoot();
-            if (configuredRoot) {
-                return `${configuredRoot}/${DOCUMENT_MEDIA_URL_ROOT}`;
-            }
-            const workspaceRoot = await resolveWorkspaceRoot();
-            if (!workspaceRoot) {
-                throw new Error('Unable to determine workspace root. Set DOCUMENT_STORAGE_ROOT to override.');
-            }
-            const detectedMediaDirectory = await locateMediaDirectory(workspaceRoot);
-            if (!detectedMediaDirectory) {
-                throw new Error(`Unable to locate "${DOCUMENT_MEDIA_URL_ROOT}" directory. Create it or set DOCUMENT_STORAGE_ROOT.`);
-            }
-            return detectedMediaDirectory;
-        })();
-
-        try {
-            cachedRoot = await inflight;
-            return cachedRoot;
-        } finally {
-            inflight = null;
-        }
-    };
-};
-
-const createFontMap = () => ({
-    tiny: '12px',
-    small: '14px',
-    medium: '16px',
-    large: '20px',
-    'x-large': '24px'
-});
-
-const createFontFamilyMap = () => ({
-    arial: 'Arial, sans-serif',
-    georgia: 'Georgia, serif',
-    courier: '"Courier New", monospace',
-    roboto: '"Roboto", sans-serif'
-});
-
-const createTextIndentMap = () => ({
-    none: '0',
-    small: '12px',
-    medium: '24px',
-    large: '36px'
-});
-
-const escapeHtml = (value = '') => String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
-
-const unescapeHtml = (value = '') => {
-    if (typeof window === 'undefined') {
-        return value;
-    }
-    const div = document.createElement('textarea');
-    div.innerHTML = value;
-    return div.value;
-};
-
-const reverseQuerySelector = (element, selector, boundarySelector) => {
-    let current = element;
-    while (current) {
-        if (current.matches && current.matches(selector)) {
-            return current;
-        }
-        if (boundarySelector && current.matches && current.matches(boundarySelector)) {
-            break;
-        }
-        current = current.parentElement;
-    }
-    return null;
-};
-
-const normalizeSpaces = (value) => {
-    if (value === null || value === undefined) {
-        return value;
-    }
-    if (typeof value !== 'string') {
-        return value;
-    }
-    return value
-        .replace(/\u00A0/g, ' ')
-        .replace(/&nbsp;/g, ' ')
-        .replace(/\s+/g, ' ')
-        .trim();
-};
-
-const customTrim = (value) => {
-    if (value === null || value === undefined) {
-        return value;
-    }
-    if (typeof value !== 'string') {
-        return value;
-    }
-    return value.replace(/^[\u00A0\s]+|[\u00A0\s]+$/g, '').trim();
-};
-
-const generateRandomId = (prefix = 'id') => `${prefix}-${Math.random().toString(36).slice(2, 10)}`;
-
-const toBase64 = (uint8Array) => {
-    if (typeof Buffer !== 'undefined' && Buffer.from) {
-        return Buffer.from(uint8Array).toString('base64');
-    }
-    let binary = '';
-    const chunkSize = 0x8000;
-    for (let i = 0; i < uint8Array.length; i += chunkSize) {
-        const chunk = uint8Array.subarray(i, i + chunkSize);
-        binary += String.fromCharCode.apply(null, chunk);
-    }
-    if (typeof btoa === 'function') {
-        return btoa(binary);
-    }
-    throw new Error('Base64 encoding is not supported in this environment.');
-};
-
-const sanitizePathSegment = (value = '') => {
-    if (typeof value !== 'string') {
-        return '';
-    }
-    return value
-        .replace(/^\.+/, '')
-        .replace(/[\\]/g, '_')
-        .replace(/\//g, '_')
-        .replace(/[<>:"|?*]/g, '_')
-        .trim() || 'document';
-};
-
-const resolveDocumentContext = (workspaceState) => {
-    if (!workspaceState) {
-        return null;
-    }
-    const metadataId = typeof workspaceState.currentDocumentMetadataId === 'string'
-        ? workspaceState.currentDocumentMetadataId.trim()
-        : '';
-    const docId = typeof workspaceState.currentDocumentId === 'string'
-        ? workspaceState.currentDocumentId.trim()
-        : '';
-    const raw = metadataId || docId;
-    if (!raw) {
-        return null;
-    }
-    return {
-        raw,
-        folder: sanitizePathSegment(raw)
-    };
-};
 
 const buildUIHelpers = () => {
     const configs = { components: [] };
@@ -456,18 +223,11 @@ const buildWorkspaceModule = (workspaceState) => {
 
     const getDocumentContext = () => resolveDocumentContext(workspaceState);
     const getDocumentMediaStorageRoot = createDocumentMediaStorageResolver(callExplorerTool);
-
-    const ensureDirectory = async (directoryPath) => {
-        await callExplorerTool('create_directory', { path: directoryPath });
-    };
-
-    const writeBinaryFile = async (relativePath, data) => {
-        await callExplorerTool('write_binary_file', {
-            path: relativePath,
-            content: toBase64(data),
-            encoding: 'base64'
-        });
-    };
+    const mediaClient = createMediaClient({
+        callExplorerTool,
+        getDocumentContext,
+        getDocumentMediaStorageRoot
+    });
 
     return {
         async getWorkspaceStatus() {
@@ -483,64 +243,22 @@ const buildWorkspaceModule = (workspaceState) => {
             return [...DEFAULT_CUSTOM_TYPES];
         },
         async getImageURL(imageId) {
-            return imageId ? `/${imageId}` : '';
+            return mediaClient.getImageURL(imageId);
         },
         async getAudioURL(audioId) {
-            if (!audioId) {
-                return '';
-            }
-            const context = getDocumentContext();
-            if (!context) {
-                return `/${audioId}`;
-            }
-            const mediaPath = `${DOCUMENT_MEDIA_URL_ROOT}/${context.folder}/${audioId}${AUDIO_FILE_EXTENSION}`;
-            return `/${mediaPath}`;
+            return mediaClient.getAudioURL(audioId);
         },
         async putAudio(uint8Array) {
-            if (!(uint8Array instanceof Uint8Array)) {
-                throw new Error('Audio payload must be a Uint8Array.');
-            }
-            const context = getDocumentContext();
-            if (!context) {
-                throw new Error('No active document context. Open a document before uploading audio.');
-            }
-            const mediaId = generateRandomId('audio');
-            const mediaStorageRoot = await getDocumentMediaStorageRoot();
-            const directory = `${mediaStorageRoot}/${context.folder}`;
-            await ensureDirectory(directory);
-            const relativePath = `${directory}/${mediaId}${AUDIO_FILE_EXTENSION}`;
-            await writeBinaryFile(relativePath, uint8Array);
-            return mediaId;
+            return mediaClient.putAudio(uint8Array);
         },
         async getVideoURL(videoId) {
-            if (!videoId) {
-                return '';
-            }
-            const context = getDocumentContext();
-            if (!context) {
-                return `/${videoId}`;
-            }
-            const mediaPath = `${DOCUMENT_MEDIA_URL_ROOT}/${context.folder}/${videoId}${VIDEO_FILE_EXTENSION}`;
-            return `/${mediaPath}`;
+            return mediaClient.getVideoURL(videoId);
         },
         async putVideo(uint8Array) {
-            if (!(uint8Array instanceof Uint8Array)) {
-                throw new Error('Video payload must be a Uint8Array.');
-            }
-            const context = getDocumentContext();
-            if (!context) {
-                throw new Error('No active document context. Open a document before uploading video.');
-            }
-            const mediaId = generateRandomId('video');
-            const mediaStorageRoot = await getDocumentMediaStorageRoot();
-            const directory = `${mediaStorageRoot}/${context.folder}`;
-            await ensureDirectory(directory);
-            const relativePath = `${directory}/${mediaId}${VIDEO_FILE_EXTENSION}`;
-            await writeBinaryFile(relativePath, uint8Array);
-            return mediaId;
+            return mediaClient.putVideo(uint8Array);
         },
         async putImage(_arrayBuffer) {
-            return 'image-placeholder';
+            return mediaClient.putImage(_arrayBuffer);
         }
     };
 };

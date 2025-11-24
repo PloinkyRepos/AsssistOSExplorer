@@ -95,15 +95,109 @@ export const readVideoMetadata = createMediaElementReader({
     unsupportedMessage: 'Video metadata extraction requires a DOM environment.'
 });
 
-export async function processMediaUpload({ file, maxFileSize, metadataReader }) {
+const validateFilePayload = (file, maxFileSize) => {
     if (!file) {
         throw createError(MEDIA_UPLOAD_ERROR_CODES.NO_FILE, 'No file selected.');
+    }
+    const hasName = file && typeof file.name === 'string';
+    const hasSize = file && typeof file.size !== 'undefined';
+    if (!hasName || !hasSize) {
+        throw new Error('Invalid file payload.');
     }
     if (Number.isFinite(maxFileSize) && Number.isFinite(file.size) && file.size > maxFileSize) {
         throw createError(MEDIA_UPLOAD_ERROR_CODES.TOO_LARGE, 'File exceeds the allowed size.');
     }
-    const uploadPromise = uploadBlobFile(file);
-    const metadata = typeof metadataReader === 'function' ? await metadataReader(file) : null;
-    const uploadResult = await uploadPromise;
-    return { uploadResult, metadata };
+    return file;
+};
+
+export async function processMediaUpload({ file, maxFileSize, metadataReader, hooks = {} }) {
+    try {
+        const payload = validateFilePayload(file, maxFileSize);
+        hooks.onProgress?.({ phase: 'validated', file: payload });
+        const uploadPromise = uploadBlobFile(payload);
+        hooks.onProgress?.({ phase: 'upload-start', file: payload });
+        let metadata = null;
+        if (typeof metadataReader === 'function') {
+            hooks.onProgress?.({ phase: 'metadata-start', file: payload });
+            metadata = await metadataReader(payload);
+            hooks.onProgress?.({ phase: 'metadata-complete', file: payload, metadata });
+        }
+        const uploadResult = await uploadPromise;
+        hooks.onProgress?.({ phase: 'upload-complete', file: payload, uploadResult });
+        const result = { uploadResult, metadata };
+        hooks.onSuccess?.(result);
+        return result;
+    } catch (error) {
+        hooks.onError?.(error);
+        throw error;
+    }
+}
+
+export class MediaUploadController {
+    constructor({ maxFileSize, metadataReader } = {}) {
+        this.maxFileSize = maxFileSize;
+        this.metadataReader = metadataReader;
+        this.listeners = new Map();
+    }
+
+    on(eventName, handler) {
+        if (typeof handler !== 'function') {
+            return () => {};
+        }
+        if (!this.listeners.has(eventName)) {
+            this.listeners.set(eventName, new Set());
+        }
+        this.listeners.get(eventName).add(handler);
+        return () => this.off(eventName, handler);
+    }
+
+    off(eventName, handler) {
+        const bucket = this.listeners.get(eventName);
+        if (!bucket) {
+            return;
+        }
+        bucket.delete(handler);
+        if (!bucket.size) {
+            this.listeners.delete(eventName);
+        }
+    }
+
+    emit(eventName, detail) {
+        const bucket = this.listeners.get(eventName);
+        if (!bucket) {
+            return;
+        }
+        bucket.forEach((handler) => {
+            try {
+                handler(detail);
+            } catch (error) {
+                console.error('[mediaUpload] Listener error', error);
+            }
+        });
+    }
+
+    async upload(file) {
+        this.emit('progress', { phase: 'start', file });
+        try {
+            const result = await processMediaUpload({
+                file,
+                maxFileSize: this.maxFileSize,
+                metadataReader: this.metadataReader,
+                hooks: {
+                    onProgress: (payload) => this.emit('progress', payload),
+                    onSuccess: (payload) => this.emit('success', payload),
+                    onError: (error) => this.emit('error', { error })
+                }
+            });
+            this.emit('progress', { phase: 'complete', file, result });
+            return result;
+        } catch (error) {
+            this.emit('progress', { phase: 'complete', file, error });
+            throw error;
+        }
+    }
+
+    dispose() {
+        this.listeners.clear();
+    }
 }
