@@ -1,5 +1,5 @@
 import {generateId} from "../../../imports.js";
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 const documentModule = assistOS.loadModule("document");
 function lockItem(itemClass, presenter) {
     let editableItem = presenter.element.querySelector(`.${itemClass}`);
@@ -17,7 +17,7 @@ async function setUserIcon(imageId, userEmail, selectId, itemClass, presenter){
     }
     let imageSrc;
     if (imageId) {
-        imageSrc = await spaceModule.getImageURL(imageId);
+        imageSrc = await workspaceModule.getImageURL(imageId);
     } else {
         imageSrc = "./assets/images/defaultUserPhoto.png";
     }
@@ -40,7 +40,7 @@ async function deselectItem(itemId, presenter){
         clearInterval(presenter.selectionInterval);
         delete presenter.selectionInterval;
     }
-    await documentModule.deselectDocumentItem(assistOS.space.id, presenter._document.id, itemId, presenter.selectId);
+    await documentModule.deselectDocumentItem(presenter._document.id, itemId, presenter.selectId);
 }
 const MEDIA_COMMAND_KEYS = new Set(["audio", "video", "image", "effects", "backgroundsound", "backgroundvideo"]);
 
@@ -58,7 +58,7 @@ async function selectItem(lockItem, itemId, itemClass, presenter){
         clearInterval(presenter.selectionInterval);
         delete presenter.selectionInterval;
     }
-    await documentModule.selectDocumentItem(assistOS.space.id, presenter._document.id, itemId, {
+    await documentModule.selectDocumentItem(presenter._document.id, itemId, {
         lockItem: lockItem,
         selectId: presenter.selectId,
         userImageId: assistOS.user.imageId,
@@ -67,7 +67,7 @@ async function selectItem(lockItem, itemId, itemClass, presenter){
     presenter.selectionInterval = setInterval(async () => {
         let itemText = presenter.element.querySelector(`.${itemClass}`);
         lockItem = !itemText.hasAttribute("readonly");
-        await documentModule.selectDocumentItem(assistOS.space.id, presenter._document.id, itemId, {
+        await documentModule.selectDocumentItem(presenter._document.id, itemId, {
             lockItem: lockItem,
             selectId: presenter.selectId,
             userImageId: assistOS.user.imageId,
@@ -178,7 +178,7 @@ function displayCurrentStatus(element, comments, level) {
     let previewIcons = element.querySelector(".preview-icons");
     if(comments.status === "error"){
         let errorStatus = "error";
-        let plugin = assistOS.space.plugins[`${level}`].find(plugin => plugin.component === comments.plugin);
+        let plugin = assistOS.workspace.plugins[`${level}`].find(plugin => plugin.component === comments.plugin);
         previewIcons.insertAdjacentHTML("beforeend", `<img class="status-icon ${errorStatus} pointer" data-local-action="openPlugin ${level} ${comments.plugin} ${plugin.autoPin || false}" src="./assets/icons/${errorStatus}.svg">`);
     }
 }

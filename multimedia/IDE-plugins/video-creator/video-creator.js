@@ -1,5 +1,5 @@
 import {videoUtils} from "/explorer/imports.js";
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 const documentModule = assistOS.loadModule("document");
 
 function getContext(element) {
@@ -88,7 +88,7 @@ export class VideoCreator {
     }
     async initViewVideo(){
         let videoElement = this.element.querySelector("video");
-        videoElement.src = await spaceModule.getVideoURL(this.paragraphPresenter.paragraph.commands.video.id);
+        videoElement.src = await workspaceModule.getVideoURL(this.paragraphPresenter.paragraph.commands.video.id);
         videoElement.volume = this.paragraphPresenter.paragraph.commands.video.volume / 100;
         if(!this.boundHandlePlay){
             this.boundHandlePlay = this.handlePlay.bind(this, videoElement);
@@ -182,7 +182,7 @@ export class VideoCreator {
         await assistOS.loadifyComponent(this.element, async () => {
             let video = document.createElement("video");
             video.crossOrigin = "anonymous";
-            let videoURL = await spaceModule.getVideoURL(commands.lipsync.videoId);
+            let videoURL = await workspaceModule.getVideoURL(commands.lipsync.videoId);
             let thumbnailId = await videoUtils.uploadVideoThumbnail(videoURL, video);
             const duration = parseFloat(video.duration.toFixed(1));
             const width = video.videoWidth;
@@ -211,7 +211,7 @@ export class VideoCreator {
         this.paragraphPresenter.paragraph.commands.video.start = parseFloat(startInput.value);
         this.paragraphPresenter.paragraph.commands.video.end = parseFloat(endInput.value);
         this.paragraphPresenter.paragraph.commands.video.volume = parseFloat(volumeInput.value);
-        await documentModule.updateParagraphCommands(assistOS.space.id, this.paragraphPresenter._document.id, this.paragraphPresenter.paragraph.id, this.paragraphPresenter.paragraph.commands);
+        await documentModule.updateParagraphCommands(this.paragraphPresenter.chapter.id, this.paragraphPresenter.paragraph.id, this.paragraphPresenter.paragraph.commands);
         this.paragraphPresenter.checkVideoAndAudioDuration();
         await this.commandsEditor.invalidateCompiledVideos();
         targetElement.classList.add("hidden");
@@ -220,19 +220,26 @@ export class VideoCreator {
         await this.commandsEditor.insertCommandWithTask("compileVideo", {});
         let taskId = this.paragraphPresenter.paragraph.commands.compileVideo.taskId;
         this.boundOnCompileVideoUpdate = this.onCompileVideoUpdate.bind(this);
-        await assistOS.NotificationRouter.subscribeToSpace(assistOS.space.id, taskId, this.boundOnCompileVideoUpdate);
+        const subscribeToWorkspace = assistOS.NotificationRouter.subscribeToWorkspace?.bind(assistOS.NotificationRouter);
+        const subscribeToSpace = assistOS.NotificationRouter.subscribeToSpace?.bind(assistOS.NotificationRouter);
+        if (subscribeToWorkspace) {
+            await subscribeToWorkspace(taskId, this.boundOnCompileVideoUpdate);
+        } else if (subscribeToSpace) {
+            await subscribeToSpace(undefined, taskId, this.boundOnCompileVideoUpdate);
+        }
         this.invalidate();
     }
     async onCompileVideoUpdate(status){
         if(status === "completed"){
-            this.paragraphPresenter.paragraph.commands = await documentModule.getParagraphCommands(assistOS.space.id, this.paragraphPresenter._document.id, this.paragraphPresenter.paragraph.id);
+            const paragraph = await documentModule.getParagraph(this.paragraphPresenter.paragraph.id);
+            this.paragraphPresenter.paragraph.commands = paragraph.commands;
             this.invalidate();
         }
     }
     async downloadCompiledVideo(){
         let commands = this.paragraphPresenter.paragraph.commands;
         let videoId = commands.compileVideo.id;
-        let videoURL = await spaceModule.getVideoURL(videoId);
+        let videoURL = await workspaceModule.getVideoURL(videoId);
         let response = await fetch(videoURL);
         if (!response.ok) {
             throw new Error(`Failed to fetch video: ${response.statusText}`);

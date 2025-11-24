@@ -1,4 +1,4 @@
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 import {
     constructFullExpression,
     attachEventListeners,
@@ -22,7 +22,7 @@ export class EditVariableTab {
     }
 
     async beforeRender() {
-        this.commands = await spaceModule.getCommands(assistOS.space.id);
+        this.commands = await workspaceModule.getCommands();
         this.commands.sort();
     }
     /*search select*/
@@ -63,7 +63,7 @@ export class EditVariableTab {
     }
     async afterRender() {
         this.constructFullExpressionInitial()
-        let types = await spaceModule.getCustomTypes(assistOS.space.id);
+        let types = await workspaceModule.getCustomTypes();
         let variableTypeOptions = [{name: "Select a type", value: ""}];
         for(let type of types){
             variableTypeOptions.push({

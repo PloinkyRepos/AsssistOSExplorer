@@ -124,7 +124,7 @@ export class ReferencesTable {
         if(!document.comments.tor) {
             delete document.comments.tor;
         }
-        await documentModule.updateDocument(assistOS.space.id, document.id,
+        await documentModule.updateDocument(document.id,
             document.title,
             document.docId,
             document.infoText,

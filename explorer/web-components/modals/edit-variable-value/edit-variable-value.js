@@ -1,7 +1,7 @@
-let spaceModule = assistOS.loadModule("space");
-const hasUpdateApi = spaceModule && typeof spaceModule.updateTableRow === "function";
-const hasInsertApi = spaceModule && typeof spaceModule.insertTableRow === "function";
-const hasDeleteApi = spaceModule && typeof spaceModule.deleteTableRow === "function";
+let workspaceModule = assistOS.loadModule("workspace");
+const hasUpdateApi = workspaceModule && typeof workspaceModule.updateTableRow === "function";
+const hasInsertApi = workspaceModule && typeof workspaceModule.insertTableRow === "function";
+const hasDeleteApi = workspaceModule && typeof workspaceModule.deleteTableRow === "function";
 
 const generateTempId = () => {
     if (typeof crypto !== "undefined" && typeof crypto.randomUUID === "function") {
@@ -173,7 +173,7 @@ export class EditVariableValue {
             //update server side
             let computedRow = row;
             if (hasUpdateApi) {
-                computedRow = await spaceModule.updateTableRow(assistOS.space.id, this.docId, this.variable.varName, row);
+                computedRow = await workspaceModule.updateTableRow(this.docId, this.variable.varName, row);
             }
             for(let column of this.computedColumns){
                 let cellToUpdate = this.element.querySelector(`input[data-id="${truid}"][data-column="${column.name}"]`);
@@ -205,7 +205,7 @@ export class EditVariableValue {
         }
         let computedRow;
         if (hasInsertApi) {
-            computedRow = await spaceModule.insertTableRow(assistOS.space.id, this.docId, this.variable.varName, newRow, position);
+            computedRow = await workspaceModule.insertTableRow(this.docId, this.variable.varName, newRow, position);
         } else {
             const tempId = generateTempId();
             computedRow = {...newRow, truid: tempId, id: tempId};
@@ -236,7 +236,7 @@ export class EditVariableValue {
         this.variable.value.data.splice(rowIndex, 1);
         //update server side
         if (hasDeleteApi) {
-            await spaceModule.deleteTableRow(assistOS.space.id, this.docId, this.variable.varName, truid);
+            await workspaceModule.deleteTableRow(this.docId, this.variable.varName, truid);
         }
     }
     saveVarValue(targetElement) {

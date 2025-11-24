@@ -1,4 +1,4 @@
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 export class FilesMenu{
     constructor(element, invalidate){
         this.element = element;
@@ -49,7 +49,7 @@ export class FilesMenu{
     }
     async downloadFile(targetElement, fileId){
         let file = this.paragraph.commands.files.find(file => file.id === fileId);
-        let downloadURL = await spaceModule.getFileURL(file.id);
+        let downloadURL = await workspaceModule.getFileURL(file.id);
 
         const response = await fetch(downloadURL);
         if (!response.ok) throw new Error(`HTTP error! Status: ${response.status}`);

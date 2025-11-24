@@ -12,7 +12,7 @@ export class DocumentSnapshotsModal{
         this.snapshots = this.document.snapshots;
         if(this.document.type === documentModule.documentTypes.SNAPSHOT){
             let documentInfo = JSON.parse(assistOS.UI.unsanitize(this.document.abstract));
-            this.snapshots = await documentModule.getDocumentSnapshots(assistOS.space.id, documentInfo.originalDocumentId);
+            this.snapshots = await documentModule.getDocumentSnapshots(documentInfo.originalDocumentId);
             this.originalDocumentId = documentInfo.originalDocumentId;
         } else {
             this.originalDocumentId = this.document.id;
@@ -58,7 +58,7 @@ export class DocumentSnapshotsModal{
             timestamp: Date.now(),
             email: assistOS.user.email
         }
-        let snapshot = await documentModule.addDocumentSnapshot(assistOS.space.id, this.originalDocumentId, snapshotData);
+        let snapshot = await documentModule.addDocumentSnapshot(this.originalDocumentId, snapshotData);
         this.snapshots.push(snapshot);
         this.invalidate();
     }
@@ -68,13 +68,13 @@ export class DocumentSnapshotsModal{
         if (!confirmation) {
             return;
         }
-        await documentModule.deleteDocumentSnapshot(assistOS.space.id, this.originalDocumentId, snapshotId);
+        await documentModule.deleteDocumentSnapshot(this.originalDocumentId, snapshotId);
         this.snapshots = this.snapshots.filter(snapshot => snapshot.id !== snapshotId);
         this.invalidate();
     }
     async openSnapshot(targetElement, documentId){
         this.closeModal();
-        await assistOS.UI.changeToDynamicPage("space-application-page", `${assistOS.space.id}/Space/document-view-page/${documentId}`);
+        await assistOS.UI.changeToDynamicPage("document-view-page", `document-view-page/${documentId}`);
     }
     showSnapshotsOptions(targetElement, snapshotId, snapshotDocumentId) {
         let chapterOptions = `<action-box-snapshot data-id="${snapshotId}" data-document-id="${snapshotDocumentId}"></action-box-chapter>`;
@@ -98,8 +98,8 @@ export class DocumentSnapshotsModal{
             timestamp: Date.now(),
             email: assistOS.user.email
         }
-        await documentModule.restoreDocumentSnapshot(assistOS.space.id, this.originalDocumentId, snapshotId, snapshotData);
-        await assistOS.UI.changeToDynamicPage("space-application-page", `${assistOS.space.id}/Space/document-view-page/${this.originalDocumentId}`);
+        await documentModule.restoreDocumentSnapshot(this.originalDocumentId, snapshotId, snapshotData);
+        await assistOS.UI.changeToDynamicPage("document-view-page", `document-view-page/${this.originalDocumentId}`);
         this.closeModal();
     }
 }

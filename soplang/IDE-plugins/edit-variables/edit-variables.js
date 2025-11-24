@@ -186,7 +186,7 @@ export class EditVariables {
                     valueCell.removeAttribute("data-local-action");
                 }
                 valueCell.innerHTML = value;
-                await documentModule.setVarValue(assistOS.space.id, this.document.docId, varName, value);
+                await documentModule.setVarValue(this.document.id, varName, value);
             });
         }
     }
@@ -236,20 +236,20 @@ export class EditVariables {
     async updateCommands(commands) {
         if (this.paragraph) {
             this.paragraph.commands = commands;
-            await documentModule.updateParagraph(assistOS.space.id, this.chapter.id,
+            await documentModule.updateParagraph(this.chapter.id,
                 this.paragraph.id,
                 this.paragraph.text,
                 this.paragraph.commands,
                 this.paragraph.comments);
         } else if (this.chapter) {
             this.chapter.commands = commands;
-            await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
+            await documentModule.updateChapter(this.chapter.id,
                 this.chapter.title,
                 this.chapter.commands,
                 this.chapter.comments);
         } else {
             this.document.commands = commands;
-            await documentModule.updateDocument(assistOS.space.id, this.document.id,
+            await documentModule.updateDocument(this.document.id,
                 this.document.title,
                 this.document.docId,
                 this.document.infoText,

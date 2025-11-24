@@ -19,7 +19,7 @@ export class ExportDocumentModal {
 
     async openSettingsPage(eventTarget){
         await this.closeModal();
-        await assistOS.UI.changeToDynamicPage("settings-page",`${assistOS.space.id}/Space/settings-page`,{subpage:"settingsTab"});
+        await assistOS.UI.changeToDynamicPage("settings-page","settings-page",{subpage:"settingsTab"});
     }
 
     async closeModal() {
@@ -39,7 +39,7 @@ export class ExportDocumentModal {
     }
 
     async downloadArchive(targetElement) {
-        const url = `/documents/export/${assistOS.space.id}/${this.taskId}`;
+        const url = `/documents/export/${this.taskId}`;
         const a = document.createElement('a');
         a.style.display = 'none';
         a.href = url;
@@ -62,8 +62,8 @@ export class ExportDocumentModal {
         let checkBox = this.element.querySelector('input[type="checkbox"]');
         this.exportType = checkBox.checked ? 'full' : 'partial';
         try {
-            this.taskId = await documentModule.exportDocument(assistOS.space.id, this.documentId, this.exportType);
-            await assistOS.NotificationRouter.subscribeToSpace(assistOS.space.id, this.taskId, this.boundsOnCompleteExport);
+            this.taskId = await documentModule.exportDocument(this.documentId, this.exportType);
+            await assistOS.NotificationRouter.subscribeToWorkspace?.(this.taskId, this.boundsOnCompleteExport);
         } catch (e) {
             button.classList.remove('loading-icon');
             button.innerHTML = 'Export as AOS';
@@ -71,7 +71,6 @@ export class ExportDocumentModal {
     }
 
     async exportDOCX() {
-        const spaceId = assistOS.space.id;
         const documentId = this.documentId;
 
         this.settings = await this.showCustomizationModal();
@@ -85,7 +84,7 @@ export class ExportDocumentModal {
             console.log("Settings sent to server:", JSON.stringify(this.settings));
 
             // Trimiterea request-ului cu settings în body
-            const response = await fetch(`/documents/export/docx/${spaceId}/${documentId}`, {
+            const response = await fetch(`/documents/export/docx/${documentId}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -110,20 +109,19 @@ export class ExportDocumentModal {
         const url = window.URL.createObjectURL(blob);
         const a = document.createElement("a");
         a.href = url;
-        a.download = `Space:${spaceId}_Document:${documentId}.docx`;
+        a.download = `${assistOS.UI.unsanitize(this.documentTitle || documentId)}.docx`;
         a.click();
         window.URL.revokeObjectURL(url);
     }
 
     async exportHTML() {
-        const spaceId = assistOS.space.id;
         const documentId = this.documentId;
 
         let htmlContent;
         try {
             console.log("No settings sent to server.");
 
-            const response = await fetch(`/documents/export/html/${spaceId}/${documentId}`, {
+            const response = await fetch(`/documents/export/html/${documentId}`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"

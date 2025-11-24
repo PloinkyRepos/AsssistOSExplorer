@@ -1,5 +1,5 @@
 const documentModule = assistOS.loadModule("document");
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 import {executorTimer, unescapeHtmlEntities} from "../../../imports.js";
 import UIUtils from "./UIUtils.js";
 import pluginUtils from "../../../utils/pluginUtils.js";
@@ -13,9 +13,9 @@ export class DocumentViewPage {
         const documentId = rawDocumentId && rawDocumentId !== "null" && rawDocumentId !== "undefined" ? rawDocumentId : null;
         this.invalidate(async () => {
             if (documentId === "demo") {
-                const documents = await documentModule.getDocuments(assistOS.space.id);
+                const documents = await documentModule.getDocuments();
                 const docId = documents[documents.length - 1].id;
-                this._document = await documentModule.loadDocument(assistOS.space.id, docId);
+                this._document = await documentModule.loadDocument(docId);
                 this.viewMode = "demo";
             } else {
                 const hashDocumentId = window.location.hash.split("/")[3];
@@ -23,17 +23,17 @@ export class DocumentViewPage {
                 if (!targetDocumentId) {
                     throw new Error("Document identifier is required.");
                 }
-                this._document = await documentModule.loadDocument(assistOS.space.id, targetDocumentId);
+                this._document = await documentModule.loadDocument(targetDocumentId);
             }
 
             this.documentId = this._document.id;
-            assistOS.space.currentDocumentId = this._document.docId || this._document.id;
-            assistOS.space.currentDocumentMetadataId = this._document.documentId || this._document.metadata?.id || '';
-            assistOS.space.currentDocumentPath = this._document.path || null;
+            assistOS.workspace.currentDocumentId = this._document.id;
+            assistOS.workspace.currentDocumentMetadataId = this._document.documentId || this._document.metadata?.id || this._document.docId || '';
+            assistOS.workspace.currentDocumentPath = this._document.path || null;
         });
     }
     async refreshVariables(){
-        this.variables = await documentModule.getDocCommandsParsed(assistOS.space.id, this._document.docId);
+        this.variables = await documentModule.getDocCommandsParsed(this._document.docId);
     }
     getVariables(chapterId, paragraphId) {
         return this.variables.filter(variable => {
@@ -45,7 +45,7 @@ export class DocumentViewPage {
     }
 
     async insertNewChapter(chapterId, position) {
-        let newChapter = await documentModule.getChapter(assistOS.space.id, chapterId);
+        let newChapter = await documentModule.getChapter(chapterId);
         const existingIndex = this._document.chapters.findIndex((chapter) => chapter.id === chapterId);
         if (existingIndex !== -1) {
             this._document.chapters.splice(existingIndex, 1);
@@ -125,18 +125,18 @@ export class DocumentViewPage {
                     alert("The document has been deleted");
                     break;
                 case "title":
-                    let document = await documentModule.getDocument(assistOS.space.id, this._document.id);
+                    let document = await documentModule.getDocument(this._document.id);
                     this._document.title = document.title;
                     this.renderDocumentTitle();
                     this.refreshTableOfContents();
                     break;
                 case "infoText":
-                    let documentUpdated = await documentModule.getDocument(assistOS.space.id, this._document.id);
+                    let documentUpdated = await documentModule.getDocument(this._document.id);
                     this._document.infoText = documentUpdated.infoText;
                     this.renderInfoText();
                     break;
                 case "snapshots":
-                    this._document.snapshots = await documentModule.getDocumentSnapshots(assistOS.space.id, this._document.id);
+                    this._document.snapshots = await documentModule.getDocumentSnapshots(this._document.id);
                     break;
                 default:
                     console.error("Document: Unknown update type ", data);
@@ -205,8 +205,8 @@ export class DocumentViewPage {
         if (this._document.comments.tor) {
             this.showTableOfReferences();
         }
-        if (assistOS.space.currentChapterId) {
-            let chapter = this.element.querySelector(`chapter-item[data-chapter-id="${assistOS.space.currentChapterId}"]`);
+        if (assistOS.workspace.currentChapterId) {
+            let chapter = this.element.querySelector(`chapter-item[data-chapter-id="${assistOS.workspace.currentChapterId}"]`);
             if (chapter) {
                 chapter.click();
                 chapter.scrollIntoView({behavior: "smooth", block: "center"});
@@ -253,7 +253,7 @@ export class DocumentViewPage {
         }
         this._document.comments.status = status;
         this._document.comments.plugin = pluginName;
-        await documentModule.updateDocument(assistOS.space.id, this._document.id,
+        await documentModule.updateDocument(this._document.id,
             this._document.title,
             this._document.docId,
             this._document.infoText,
@@ -270,7 +270,7 @@ export class DocumentViewPage {
         } else {
             delete this._document.comments.pluginLastOpened;
         }
-        await documentModule.updateDocument(assistOS.space.id, this._document.id,
+        await documentModule.updateDocument(this._document.id,
             this._document.title,
             this._document.docId,
             this._document.infoText,
@@ -332,7 +332,7 @@ export class DocumentViewPage {
         };
 
         const position = getNewPosition(currentChapterIndex, this._document.chapters);
-        await documentModule.changeChapterOrder(assistOS.space.id, this._document.id, currentChapterId, position);
+        await documentModule.changeChapterOrder(this._document.id, currentChapterId, position);
         this.changeChapterOrder(currentChapterId, position);
     }
 
@@ -344,7 +344,7 @@ export class DocumentViewPage {
         let infoText = assistOS.UI.sanitize(infoTextElement.value);
         if (infoText !== this._document.infoText) {
             this._document.infoText = infoText;
-            await documentModule.updateDocument(assistOS.space.id, this._document.id,
+            await documentModule.updateDocument(this._document.id,
                 this._document.title,
                 this._document.docId,
                 infoText,
@@ -357,7 +357,7 @@ export class DocumentViewPage {
         let infoTextTitle = assistOS.UI.sanitize(input.value);
         if (infoTextTitle !== this._document.comments.infoTextTitle) {
             this._document.comments.infoTextTitle = infoTextTitle;
-            await documentModule.updateDocument(assistOS.space.id, this._document.id,
+            await documentModule.updateDocument(this._document.id,
                 this._document.title,
                 this._document.docId,
                 this._document.infoText,
@@ -368,20 +368,20 @@ export class DocumentViewPage {
 
     async addChapter(targetElement, direction) {
         let position = this._document.chapters.length;
-        if (assistOS.space.currentChapterId) {
+        if (assistOS.workspace.currentChapterId) {
             if (direction === "above") {
                 position = this._document.chapters.findIndex(
-                    (chapter) => chapter.id === assistOS.space.currentChapterId);
+                    (chapter) => chapter.id === assistOS.workspace.currentChapterId);
 
             } else {
                 position = this._document.chapters.findIndex(
-                    (chapter) => chapter.id === assistOS.space.currentChapterId) + 1;
+                    (chapter) => chapter.id === assistOS.workspace.currentChapterId) + 1;
             }
 
         }
         let chapterTitle = assistOS.UI.sanitize("New Chapter");
-        let chapter = await documentModule.addChapter(assistOS.space.id, this._document.id, chapterTitle, null, null, position);
-        assistOS.space.currentChapterId = chapter.id;
+        let chapter = await documentModule.addChapter(this._document.id, chapterTitle, null, null, position);
+        assistOS.workspace.currentChapterId = chapter.id;
         await this.insertNewChapter(chapter.id, position);
         this.updateChapterOrdering();
         this.refreshTableOfContents();
@@ -421,14 +421,14 @@ export class DocumentViewPage {
     }
 
     async openDocumentsPage() {
-        await assistOS.UI.changeToDynamicPage("space-application-page", `${assistOS.space.id}/Space/documents-page`);
+        await assistOS.UI.changeToDynamicPage("documents-page", "documents-page");
     }
 
     async saveTitle(textElement) {
         let titleText = assistOS.UI.sanitize(textElement.value);
         if (titleText !== this._document.title && titleText !== "") {
             this._document.title = titleText;
-            await documentModule.updateDocument(assistOS.space.id, this._document.id,
+            await documentModule.updateDocument(this._document.id,
                 titleText,
                 this._document.docId,
                 this._document.infoText,
@@ -613,17 +613,17 @@ export class DocumentViewPage {
 
     showDownloadVideoButton(taskId, status) {
         if (status === "completed") {
-            let downloadURL = `/documents/video/${assistOS.space.id}/${taskId}`;
+            let downloadURL = `/documents/video/${taskId}`;
             let downloadButton = `<button class="general-button download-video-button right-margin" data-local-action="executeDownload ${downloadURL}">Download Video</button>`
             this.element.querySelector(".menu-section").insertAdjacentHTML("afterbegin", downloadButton);
         }
     }
 
     async documentToVideo(button) {
-        let taskId = await documentModule.documentToVideo(assistOS.space.id, this._document.id);
+        let taskId = await documentModule.documentToVideo(this._document.id);
         assistOS.watchTask(taskId)
         this.boundShowDownloadVideoButton = this.showDownloadVideoButton.bind(this, taskId);
-        //await assistOS.NotificationRouter.subscribeToSpace(assistOS.space.id, taskId, this.boundShowDownloadVideoButton);
+        //await assistOS.NotificationRouter.subscribeToWorkspace?.(taskId, this.boundShowDownloadVideoButton);
     }
 
     async exportDocument(targetElement) {
@@ -665,7 +665,7 @@ export class DocumentViewPage {
 
     async lipsyncVideo(targetElement) {
         const llmModule = assistOS.loadModule("llm")
-        const response = (await llmModule.lipsync(assistOS.space.id, "sync-1.6.0", {}))
+        const response = (await llmModule.lipsync("sync-1.6.0", {}))
     }
 
     async openTasksModal(targetElement) {
@@ -691,7 +691,7 @@ export class DocumentViewPage {
         if (comment !== undefined) {
             this._document.comments.messages.push(comment);
             UIUtils.changeCommentIndicator(this.element, this._document.comments.messages);
-            await documentModule.updateDocument(assistOS.space.id, this._document.id,
+            await documentModule.updateDocument(this._document.id,
                 this._document.title,
                 this._document.docId,
                 this._document.infoText,
@@ -707,7 +707,7 @@ export class DocumentViewPage {
     }
     async updateComments(comments) {
         this._document.comments.messages = comments;
-            await documentModule.updateDocument(assistOS.space.id, this._document.id,
+            await documentModule.updateDocument(this._document.id,
                 this._document.title,
                 this._document.docId,
                 this._document.infoText,
@@ -770,7 +770,7 @@ export class DocumentViewPage {
 
     // async undoOperation(targetElement) {
     //     this.toggleEditingState(false);
-    //     let success = await documentModule.undoOperation(assistOS.space.id, this._document.id);
+    //     let success = await documentModule.undoOperation(this._document.id);
     //     if (success) {
     //         assistOS.showToast("Undo successful.", "success");
     //     } else {
@@ -781,7 +781,7 @@ export class DocumentViewPage {
     //
     // async redoOperation(targetElement) {
     //     this.toggleEditingState(false);
-    //     let success = await documentModule.redoOperation(assistOS.space.id, this._document.id);
+    //     let success = await documentModule.redoOperation(this._document.id);
     //     if (success) {
     //         assistOS.showToast("Redo successful.", "success");
     //     } else {
@@ -793,7 +793,7 @@ export class DocumentViewPage {
     async buildForDocument(button) {
         button.classList.add("disabled");
         try {
-            await spaceModule.buildForDocument(assistOS.space.id, this._document.docId);
+            await workspaceModule.buildForDocument(this._document.docId);
             await assistOS.showToast("Build successful", "success", 5000);
         } catch (e) {
             await assistOS.showToast("Build failed", "error", 5000);
@@ -830,7 +830,7 @@ export class DocumentViewPage {
         this._document.comments.toc = {
             collapsed: false
         };
-        await documentModule.updateDocument(assistOS.space.id, this._document.id,
+        await documentModule.updateDocument(this._document.id,
             this._document.title,
             this._document.docId,
             this._document.infoText,
@@ -852,7 +852,7 @@ export class DocumentViewPage {
             collapsed: false,
             references: []
         };
-        await documentModule.updateDocument(assistOS.space.id, this._document.id,
+        await documentModule.updateDocument(this._document.id,
             this._document.title,
             this._document.docId,
             this._document.infoText,

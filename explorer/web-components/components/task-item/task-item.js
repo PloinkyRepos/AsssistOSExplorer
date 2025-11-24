@@ -12,7 +12,13 @@ export class TaskItem{
 
         this.invalidate(async ()=> {
             this.boundOnTasksUpdate = this.onTasksUpdate.bind(this);
-            await assistOS.NotificationRouter.subscribeToSpace(assistOS.space.id, id, this.boundOnTasksUpdate);
+            const subscribeToWorkspace = assistOS.NotificationRouter.subscribeToWorkspace?.bind(assistOS.NotificationRouter);
+            const subscribeToSpace = assistOS.NotificationRouter.subscribeToSpace?.bind(assistOS.NotificationRouter);
+            if (subscribeToWorkspace) {
+                await subscribeToWorkspace(id, this.boundOnTasksUpdate);
+            } else if (subscribeToSpace) {
+                await subscribeToSpace(undefined, id, this.boundOnTasksUpdate);
+            }
         })
     }
     onTasksUpdate(status){
@@ -80,7 +86,7 @@ export class TaskItem{
         await utilModule.removeTask(this.task.id);
         if(this.task.configs.sourceCommand){
             delete this.paragraphPresenter.paragraph.commands[this.task.configs.sourceCommand].taskId;
-            await documentModule.updateParagraphCommands(assistOS.space.id, this.paragraphPresenter._document.id, this.paragraphPresenter.paragraph.id, this.paragraphPresenter.paragraph.commands);
+            await documentModule.updateParagraphCommands(this.paragraphPresenter.chapter.id, this.paragraphPresenter.paragraph.id, this.paragraphPresenter.paragraph.commands);
         }
         this.element.remove();
     }

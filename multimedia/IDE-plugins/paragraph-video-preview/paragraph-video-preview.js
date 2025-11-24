@@ -1,5 +1,5 @@
 import {executorTimer, videoUtils} from "/explorer/imports.js";
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 const blackScreen = new URL("../assets/images/black-screen.png", import.meta.url).href;
 
 export class ParagraphVideoPreview {
@@ -194,11 +194,11 @@ export class ParagraphVideoPreview {
         for (let mediaPlayer of mediaPlayers) {
             let id = mediaPlayer.getAttribute("data-id");
             if (id === "paragraph-video") {
-                mediaPlayer.src = await spaceModule.getVideoURL(this.paragraph.commands.video.id);
+                mediaPlayer.src = await workspaceModule.getVideoURL(this.paragraph.commands.video.id);
             } else if (id === "paragraph-audio") {
-                mediaPlayer.src = await spaceModule.getAudioURL(this.paragraph.commands.audio.id);
+                mediaPlayer.src = await workspaceModule.getAudioURL(this.paragraph.commands.audio.id);
             } else if (id === "audio-plugin") {
-                mediaPlayer.src = await spaceModule.getAudioURL(this.chapter.backgroundSound.id);
+                mediaPlayer.src = await workspaceModule.getAudioURL(this.chapter.backgroundSound.id);
             }
             mediaPlayer.load();
         }
@@ -208,7 +208,7 @@ export class ParagraphVideoPreview {
         this.chapterAudioElement.addEventListener("loadedmetadata", () => {
             this.chapterAudioElement.currentTime = this.chapterAudioStartTime;
         });
-        this.chapterAudioElement.src = await spaceModule.getAudioURL(this.chapter.backgroundSound.id);
+        this.chapterAudioElement.src = await workspaceModule.getAudioURL(this.chapter.backgroundSound.id);
         this.chapterAudioElement.pause();
         this.chapterAudioElement.volume = this.chapter.backgroundSound.volume / 100;
     }
@@ -365,11 +365,11 @@ export class ParagraphVideoPreview {
         let imageSrc = blackScreen;
         if (this.paragraph.commands.video) {
             if (this.paragraph.commands.video.thumbnailId) {
-                imageSrc = await spaceModule.getImageURL(this.paragraph.commands.video.thumbnailId);
+                imageSrc = await workspaceModule.getImageURL(this.paragraph.commands.video.thumbnailId);
             }
         }
         if (this.paragraph.commands.image && !this.paragraph.commands.video) {
-            imageSrc = await spaceModule.getImageURL(this.paragraph.commands.image.id);
+            imageSrc = await workspaceModule.getImageURL(this.paragraph.commands.image.id);
         }
         this.imgElement.src = imageSrc;
     }

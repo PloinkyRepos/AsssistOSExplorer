@@ -1,4 +1,4 @@
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 const documentModule = assistOS.loadModule("document");
 export class EditEffectModal{
     constructor(element, invalidate) {
@@ -11,7 +11,7 @@ export class EditEffectModal{
         this.invalidate();
     }
     async beforeRender() {
-        this.audioSrc = await spaceModule.getAudioURL(this.effect.id);
+        this.audioSrc = await workspaceModule.getAudioURL(this.effect.id);
         this.effectName = this.effect.name;
         this.effectStart = this.effect.start;
         this.effectEnd = this.effect.end;
@@ -99,7 +99,12 @@ export class EditEffectModal{
         this.effect.fadeIn = effectFadeIn.checked;
         this.effect.fadeOut = effectFadeOut.checked;
         await this.audioMenuPresenter.commandsEditor.invalidateCompiledVideos();
-        await documentModule.updateParagraphCommands(assistOS.space.id, this.audioMenuPresenter._document.id, this.audioMenuPresenter.paragraphId, this.audioMenuPresenter.commands);
+        const chapterId = this.audioMenuPresenter.chapter?.id
+            || this.audioMenuPresenter.paragraphPresenter?.chapter?.id
+            || this.audioMenuPresenter._document?.chapters?.find((chapter) =>
+                chapter.paragraphs?.some((paragraph) => paragraph.id === this.audioMenuPresenter.paragraphId)
+            )?.id;
+        await documentModule.updateParagraphCommands(chapterId, this.audioMenuPresenter.paragraphId, this.audioMenuPresenter.commands);
         assistOS.UI.closeModal(this.element, true);
     }
     closeModal(button){

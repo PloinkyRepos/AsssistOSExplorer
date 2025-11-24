@@ -1,4 +1,4 @@
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 const documentModule = assistOS.loadModule("document");
 
 function getContext(element) {
@@ -18,7 +18,9 @@ export class AudioCreator {
         this._document = documentPresenter._document;
         let context = getContext(this.element);
         let chapterId = context.chapterId;
+        this.chapterId = chapterId;
         let chapter = this._document.chapters.find(chapter => chapter.id === chapterId);
+        this.chapter = chapter;
         this.paragraphId = context.paragraphId;
         let paragraphElement = documentPresenter.element.querySelector(`paragraph-item[data-paragraph-id="${this.paragraphId}"]`);
         this.paragraphPresenter = paragraphElement ? paragraphElement.webSkelPresenter : null;
@@ -63,7 +65,7 @@ export class AudioCreator {
                     saveVolumeButton.classList.add("hidden");
                 }
             });
-            audioElement.src = await spaceModule.getAudioURL(this.commands.audio.id);
+            audioElement.src = await workspaceModule.getAudioURL(this.commands.audio.id);
         }
         if(this.commands.speech){
             let deleteSpeechButton = this.element.querySelector(".delete-speech");
@@ -84,7 +86,7 @@ export class AudioCreator {
         let volumeInput = this.element.querySelector("#volume");
         this.commands.audio.volume = parseFloat(volumeInput.value);
         await this.commandsEditor.invalidateCompiledVideos();
-        await documentModule.updateParagraphCommands(assistOS.space.id, this._document.id, this.paragraphId, this.commands);
+        await documentModule.updateParagraphCommands(this.chapterId, this.paragraphId, this.commands);
         button.classList.add("hidden");
     }
     showSpeechWarning(message){
@@ -177,11 +179,11 @@ export class AudioCreator {
     }
     async saveAudioAttachmentVariable(audioId) {
         try {
-            const audioUrl = await spaceModule.getAudioURL(audioId);
+            const audioUrl = await workspaceModule.getAudioURL(audioId);
             if (!audioUrl) {
                 return;
             }
-            await documentModule.setVarValue(assistOS.space.id, this._document.docId, "audio-attachment", audioUrl);
+            await documentModule.setVarValue(this._document.id, "audio-attachment", audioUrl);
         } catch (error) {
             console.error("Failed to persist audio attachment variable", error);
         }

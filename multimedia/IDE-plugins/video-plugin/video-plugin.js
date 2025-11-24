@@ -259,14 +259,13 @@ export class VideoPlugin {
         try {
             if (this.isParagraphContext) {
                 await documentModule.deleteParagraphVideoAttachment(
-                    assistOS.space.id,
                     this._document.id,
                     this.chapter.id,
                     this.paragraph.id,
                     targetIdentifier
                 );
             } else {
-                await documentModule.deleteChapterVideoAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+                await documentModule.deleteChapterVideoAttachment(this._document.id, this.chapter.id, targetIdentifier);
             }
             await this.invalidateCompiledVideo();
             await this.populateExistingVideos();
@@ -280,7 +279,6 @@ export class VideoPlugin {
     async persistVideoAttachment(payload) {
         if (this.isParagraphContext) {
             return documentModule.setParagraphVideoAttachment(
-                assistOS.space.id,
                 this._document.id,
                 this.chapter.id,
                 this.paragraph.id,
@@ -288,7 +286,6 @@ export class VideoPlugin {
             );
         }
         return documentModule.setChapterVideoAttachment(
-            assistOS.space.id,
             this._document.id,
             this.chapter.id,
             payload
@@ -308,7 +305,7 @@ export class VideoPlugin {
         }
         if (this.chapter.commands?.compileVideo) {
             delete this.chapter.commands.compileVideo;
-            await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
+            await documentModule.updateChapterCommands(this._document.id, this.chapter.id, this.chapter.commands);
         }
     }
 

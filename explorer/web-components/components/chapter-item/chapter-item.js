@@ -34,7 +34,7 @@ export class ChapterItem {
 
     async refreshChapter(documentId, chapterId) {
         const documentModule = assistOS.loadModule("document");
-        const chapter = await documentModule.getChapter(assistOS.space.id, documentId, chapterId);
+        const chapter = await documentModule.getChapter(documentId, chapterId);
         let chapterIndex = this._document.chapters.findIndex(chapter => chapter.id === chapterId);
         if (chapterIndex !== -1) {
             this._document.chapters[chapterIndex] = new documentModule.Chapter(chapter);
@@ -65,7 +65,7 @@ export class ChapterItem {
     async insertNewParagraph(paragraphId, position) {
         let newParagraph = this.chapter.paragraphs.find((paragraph) => paragraph.id === paragraphId);
         if (!newParagraph) {
-            newParagraph = await documentModule.getParagraph(assistOS.space.id, paragraphId);
+            newParagraph = await documentModule.getParagraph(paragraphId);
         }
 
         const existingIndex = this.chapter.paragraphs.findIndex((paragraph) => paragraph.id === paragraphId);
@@ -102,7 +102,7 @@ export class ChapterItem {
         if(comment !== undefined){
             this.chapter.comments.messages.push(comment)
             UIUtils.changeCommentIndicator(this.element, this.chapter.comments.messages);
-            await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
+            await documentModule.updateChapter(this.chapter.id,
                 this.chapter.title,
                 this.chapter.commands,
                 this.chapter.comments);
@@ -110,7 +110,7 @@ export class ChapterItem {
     }
     async updateComments(comments) {
         this.chapter.comments.messages = comments;
-        await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
+        await documentModule.updateChapter(this.chapter.id,
             this.chapter.title,
             this.chapter.commands,
             this.chapter.comments);
@@ -163,7 +163,7 @@ export class ChapterItem {
         } else {
             switch (data) {
                 case "title": {
-                    let chapter = await documentModule.getChapter(assistOS.space.id, this._document.id, this.chapter.id);
+                    let chapter = await documentModule.getChapter(this._document.id, this.chapter.id);
                     if (chapter.title !== this.chapter.title) {
                         this.chapter.title = chapter.title;
                         this.renderChapterTitle();
@@ -171,7 +171,7 @@ export class ChapterItem {
                     break;
                 }
                 case "commands": {
-                    let chapter = await documentModule.getChapter(assistOS.space.id, this._document.id, this.chapter.id);
+                    let chapter = await documentModule.getChapter(this._document.id, this.chapter.id);
                     this.chapter.commands = chapter.commands;
                     break;
                 }
@@ -189,7 +189,7 @@ export class ChapterItem {
         let titleText = assistOS.UI.sanitize(titleElement.value);
         if (titleText !== this.chapter.title && titleText !== "") {
             this.chapter.title = titleText;
-            await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
+            await documentModule.updateChapter(this.chapter.id,
                 titleText,
                 this.chapter.commands,
                 this.chapter.comments);
@@ -216,7 +216,7 @@ export class ChapterItem {
         }
 
         this.renderChapterTitle();
-        if (this.chapter.id === assistOS.space.currentChapterId && !assistOS.space.currentParagraphId) {
+        if (this.chapter.id === assistOS.workspace.currentChapterId && !assistOS.workspace.currentParagraphId) {
             this.element.click();
         }
         this.displayChapterContent();
@@ -252,7 +252,7 @@ export class ChapterItem {
         }
         this.chapter.comments.status = status;
         this.chapter.comments.plugin = pluginName;
-        await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
+        await documentModule.updateChapter(this.chapter.id,
             this.chapter.title,
             this.chapter.commands,
             this.chapter.comments);
@@ -267,7 +267,7 @@ export class ChapterItem {
         } else {
             delete this.chapter.comments.pluginLastOpened;
         }
-        await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
+        await documentModule.updateChapter(this.chapter.id,
             this.chapter.title,
             this.chapter.commands,
             this.chapter.comments);
@@ -282,8 +282,8 @@ export class ChapterItem {
     }
     async addParagraph(_target, direction) {
         let position = this.chapter.paragraphs.length;
-        if (assistOS.space.currentParagraphId) {
-            position = this.chapter.paragraphs.findIndex(paragraph => paragraph.id === assistOS.space.currentParagraphId);
+        if (assistOS.workspace.currentParagraphId) {
+            position = this.chapter.paragraphs.findIndex(paragraph => paragraph.id === assistOS.workspace.currentParagraphId);
             if(direction === "above"){
                 if(position < 0){
                     position = 0;
@@ -293,9 +293,9 @@ export class ChapterItem {
             }
         }
 
-        let paragraph = await documentModule.addParagraph(assistOS.space.id, this.chapter.id, "", null, null, position);
-        assistOS.space.currentParagraphId = paragraph.id;
-        await this.insertNewParagraph(assistOS.space.currentParagraphId, position);
+        let paragraph = await documentModule.addParagraph(this.chapter.id, "", null, null, position);
+        assistOS.workspace.currentParagraphId = paragraph.id;
+        await this.insertNewParagraph(assistOS.workspace.currentParagraphId, position);
     }
     async addParagraphOrChapterOnKeyPress(event) {
         if (!event.ctrlKey || event.key !== "Enter") {
@@ -392,7 +392,7 @@ export class ChapterItem {
 
 
     async highlightChapter() {
-        assistOS.space.currentChapterId = this.chapter.id;
+        assistOS.workspace.currentChapterId = this.chapter.id;
         this.element.classList.add("highlighted-chapter");
     }
     async highlightChapterHeader() {
@@ -509,7 +509,7 @@ export class ChapterItem {
     }
 
     focusOutHandler() {
-        assistOS.space.currentChapterId = null;
+        assistOS.workspace.currentChapterId = null;
         this.switchChapterToolbar("off");
         this.element.classList.remove("highlighted-chapter");
     }
@@ -517,7 +517,7 @@ export class ChapterItem {
     async changeChapterDisplay(_target) {
         this.chapter.comments.collapsed = !this.chapter.comments.collapsed;
         this.displayChapterContent();
-        await documentModule.updateChapter(assistOS.space.id, this.chapter.id,
+        await documentModule.updateChapter(this.chapter.id,
             this.chapter.title,
             this.chapter.commands,
             this.chapter.comments);
@@ -552,7 +552,7 @@ export class ChapterItem {
         if (!confirmation) {
             return;
         }
-        await documentModule.deleteChapter(assistOS.space.id, this._document.id, this.chapter.id);
+        await documentModule.deleteChapter(this._document.id, this.chapter.id);
         this.documentPresenter.deleteChapter(this.chapter.id);
     }
 

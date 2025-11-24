@@ -1,4 +1,4 @@
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 const galleryModule = assistOS.loadModule("gallery");
 import {videoUtils} from "../../../imports.js";
 
@@ -33,7 +33,7 @@ export class InsertAttachmentModal {
             this.fileHandler = this.autoDetectFileHandler;
         }
         if (this.modalBody === this.galleryImagesSection) {
-            this.galleries = await galleryModule.getGalleriesMetadata(assistOS.space.id);
+            this.galleries = await galleryModule.getGalleriesMetadata();
             let galleriesHMTL = "";
             if (this.galleries.length > 0) {
                 this.galleries.forEach((gallery) => {
@@ -106,7 +106,7 @@ export class InsertAttachmentModal {
         reader.onload = async (e) => {
             const uint8Array = new Uint8Array(e.target.result);
             await assistOS.loadifyComponent(this.element, async () => {
-                let audioId = await spaceModule.putAudio(uint8Array);
+                let audioId = await workspaceModule.putAudio(uint8Array);
                 let data = await this.loadAudioMetadata(file, audioId);
                 assistOS.UI.closeModal(_target, data);
             });
@@ -145,7 +145,7 @@ export class InsertAttachmentModal {
         reader.onload = async (e) => {
             await assistOS.loadifyComponent(this.element, async () => {
                 const uint8Array = new Uint8Array(e.target.result);
-                videoId = await spaceModule.putVideo(uint8Array);
+                videoId = await workspaceModule.putVideo(uint8Array);
                 let videoURL = URL.createObjectURL(file);
                 let thumbnailId = await videoUtils.uploadVideoThumbnail(videoURL, this.attachmentElement);
                 const duration = parseFloat(this.attachmentElement.duration);
@@ -175,7 +175,7 @@ export class InsertAttachmentModal {
         this.attachmentElement = new Image();
         reader.onload = async (e) => {
             const uint8Array = new Uint8Array(e.target.result);
-            let imageId = await spaceModule.putImage(uint8Array);
+            let imageId = await workspaceModule.putImage(uint8Array);
             reader.onload = async (e) => {
                 this.attachmentElement.onload = async () => {
                     const canvas = document.createElement('canvas');
@@ -219,7 +219,7 @@ export class InsertAttachmentModal {
         let reader = new FileReader();
         reader.onload = async (e) => {
             const uint8Array = new Uint8Array(e.target.result);
-            fileData.id = await spaceModule.putFile(uint8Array, fileType);
+            fileData.id = await workspaceModule.putFile(uint8Array, fileType);
             assistOS.UI.closeModal(modal, fileData);
         }
         reader.readAsArrayBuffer(file);
@@ -231,7 +231,7 @@ export class InsertAttachmentModal {
         this.element.insertAdjacentHTML('beforeend', this.modalBody);
     }
     async openGallery(_target, galleryId) {
-        this.selectedGallery = await galleryModule.getGallery(assistOS.space.id, galleryId);
+        this.selectedGallery = await galleryModule.getGallery(galleryId);
         let allImages = this.selectedGallery.openAIHistory.concat(this.selectedGallery.midjourneyHistory);
         allImages.sort((a, b) => {
             return new Date(b.createdAt) - new Date(a.createdAt);

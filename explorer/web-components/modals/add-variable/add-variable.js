@@ -1,5 +1,5 @@
 const documentModule = assistOS.loadModule("document");
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 import {
     attachEventListeners, constructFullExpression,
     openSearchSelect,
@@ -24,7 +24,7 @@ export class AddVariable {
         this.invalidate();
     }
     async beforeRender(){
-        this.commands = await spaceModule.getCommands(assistOS.space.id);
+        this.commands = await workspaceModule.getCommands();
         this.commands.sort();
     }
     changeExpressionInputToMultiLine(){
@@ -52,7 +52,7 @@ export class AddVariable {
         parametersInput.classList.add("hidden");
     }
     async afterRender(){
-        let types = await spaceModule.getCustomTypes(assistOS.space.id);
+        let types = await workspaceModule.getCustomTypes();
         let variableTypeOptions = [{name: "Select a type", value: ""}];
         for(let type of types){
             variableTypeOptions.push({
@@ -90,7 +90,7 @@ export class AddVariable {
             if(this.paragraphId){
                 this.paragraph.commands += result.fullExpression;
                 this.paragraph.commands += `\n`;
-                await documentModule.updateParagraph(assistOS.space.id, this.chapterId,
+                await documentModule.updateParagraph(this.chapterId,
                     this.paragraphId,
                     this.paragraph.text,
                     this.paragraph.commands,
@@ -98,14 +98,14 @@ export class AddVariable {
             } else if(this.chapterId){
                 this.chapter.commands += result.fullExpression;
                 this.chapter.commands += `\n`;
-                await documentModule.updateChapter(assistOS.space.id, this.chapterId,
+                await documentModule.updateChapter(this.chapterId,
                     this.chapter.title,
                     this.chapter.commands,
                     this.chapter.comments);
             } else {
                 this.document.commands += result.fullExpression;
                 this.document.commands += `\n`;
-                await documentModule.updateDocument(assistOS.space.id, this.documentId,
+                await documentModule.updateDocument(this.documentId,
                     this.document.title,
                     this.document.docId,
                     this.document.infoText,

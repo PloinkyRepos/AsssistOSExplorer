@@ -140,7 +140,7 @@ export class AudioPlugin {
         }
         if (this.chapter.commands.compileVideo) {
             delete this.chapter.commands.compileVideo;
-            await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
+            await documentModule.updateChapterCommands(this._document.id, this.chapter.id, this.chapter.commands);
         }
     }
 
@@ -268,14 +268,13 @@ export class AudioPlugin {
         try {
             if (this.isParagraphContext) {
                 await documentModule.deleteParagraphAudioAttachment(
-                    assistOS.space.id,
                     this._document.id,
                     this.chapter.id,
                     this.paragraph.id,
                     targetIdentifier
                 );
             } else {
-                await documentModule.deleteChapterAudioAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+                await documentModule.deleteChapterAudioAttachment(this._document.id, this.chapter.id, targetIdentifier);
             }
             await this.invalidateCompiledVideo();
             await this.populateExistingAudio();
@@ -289,7 +288,6 @@ export class AudioPlugin {
     async persistAudioAttachment(payload) {
         if (this.isParagraphContext) {
             return documentModule.setParagraphAudioAttachment(
-                assistOS.space.id,
                 this._document.id,
                 this.chapter.id,
                 this.paragraph.id,
@@ -297,7 +295,6 @@ export class AudioPlugin {
             );
         }
         return documentModule.setChapterAudioAttachment(
-            assistOS.space.id,
             this._document.id,
             this.chapter.id,
             payload

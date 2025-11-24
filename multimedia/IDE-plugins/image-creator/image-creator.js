@@ -1,4 +1,4 @@
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 
 function getContext(element) {
     const rawContext = element.getAttribute("data-context") || "{}";
@@ -29,7 +29,7 @@ export class ImageCreator{
     }
     async beforeRender(){
         if(this.paragraphPresenter.paragraph.commands.image){
-            this.imageSrc = await spaceModule.getImageURL(this.paragraphPresenter.paragraph.commands.image.id);
+            this.imageSrc = await workspaceModule.getImageURL(this.paragraphPresenter.paragraph.commands.image.id);
         }
     }
     async afterRender(){

@@ -1,6 +1,6 @@
 const documentModule = assistOS.loadModule("document");
 const DEFAULT_DOCUMENT_CATEGORY = (AssistOS.constants && AssistOS.constants.DOCUMENT_CATEGORIES && AssistOS.constants.DOCUMENT_CATEGORIES.DOCUMENT) || "document";
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 
 import { generateId } from "../../../imports.js";
 export class AddDocumentModal {
@@ -97,13 +97,13 @@ export class AddDocumentModal {
         let formData = await assistOS.UI.extractFormInformation(_target);
         if (formData.isValid) {
             try {
-                let document = await documentModule.addDocument(assistOS.space.id, formData.data.documentTitle, DEFAULT_DOCUMENT_CATEGORY);
+                let document = await documentModule.addDocument(formData.data.documentTitle, DEFAULT_DOCUMENT_CATEGORY);
                 let chapterTitle = assistOS.UI.sanitize("New Chapter");
-                let chapter = await documentModule.addChapter(assistOS.space.id, document.id, chapterTitle);
-                let paragraph = await documentModule.addParagraph(assistOS.space.id, chapter.id, "");
-                assistOS.space.currentParagraphId = paragraph.id;
+                let chapter = await documentModule.addChapter(document.id, chapterTitle);
+                let paragraph = await documentModule.addParagraph(chapter.id, "");
+                assistOS.workspace.currentParagraphId = paragraph.id;
                 assistOS.UI.closeModal(_target);
-                await assistOS.UI.changeToDynamicPage(`space-application-page`, `${assistOS.space.id}/Space/document-view-page/${document.id}`);
+                await assistOS.UI.changeToDynamicPage("document-view-page", `document-view-page/${document.id}`);
             } catch (e) {
                 assistOS.showToast("Error creating document: " + e.message, "error", 5000);
             }
@@ -192,7 +192,7 @@ export class AddDocumentModal {
                                 const imageBuffer = new Uint8Array(imageArrayBuffer);
 
                                 // Upload the image to AssistOS
-                                const imageId = await spaceModule.putImage(imageBuffer);
+                                const imageId = await workspaceModule.putImage(imageBuffer);
                                 imageMap.set(imageName, imageId);
                                 console.log(`Uploaded image ${imageName}, got ID: ${imageId}`);
                             } catch (imageError) {
@@ -206,7 +206,7 @@ export class AddDocumentModal {
                     const startDoc = performance.now();
                     let title = textContent.title || file.name;
                     let docInfo = JSON.stringify(textContent.document_info || {})
-                    let documentObj = await documentModule.addDocument(assistOS.space.id, title, DEFAULT_DOCUMENT_CATEGORY, docInfo);
+                    let documentObj = await documentModule.addDocument(title, DEFAULT_DOCUMENT_CATEGORY, docInfo);
                     let docId = documentObj.id;
                     lastCreatedDocId = docId;
                     console.log(`Document created in ${((performance.now() - startDoc) / 1000).toFixed(2)}s`);
@@ -220,7 +220,7 @@ export class AddDocumentModal {
 
                         // Create chapter
                         console.log(`Creating chapter ${index + 1}/${textContent.chapters.length}: ${chapterTitle}`);
-                        const chapterObj = await documentModule.addChapter(assistOS.space.id, docId, chapterTitle);
+                        const chapterObj = await documentModule.addChapter(docId, chapterTitle);
                         let chapterId = chapterObj.id;
 
                         // Add paragraphs to chapter
@@ -245,21 +245,21 @@ export class AddDocumentModal {
 
                                         // Add paragraph with image command
                                         let text = paragraphText.replace(`[Image: ${imageName}] `, '');
-                                        await documentModule.addParagraph(assistOS.space.id, chapterId, text);
+                                        await documentModule.addParagraph(chapterId, text);
                                         console.log(`Added paragraph with image: ${imageName}`);
                                     } else {
                                         console.log(`No matching image ID found for: ${imageName}`);
                                         // Add regular paragraph without image
-                                        await documentModule.addParagraph(assistOS.space.id, chapterId, paragraphText);
+                                        await documentModule.addParagraph(chapterId, paragraphText);
                                     }
                                 } else {
                                     console.log('Failed to extract image name from tag:', imageTagMatch);
                                     // Add regular paragraph without image
-                                    await documentModule.addParagraph(assistOS.space.id, chapterId, paragraphText);
+                                    await documentModule.addParagraph(chapterId, paragraphText);
                                 }
                             } else {
                                 // Add regular paragraph without image
-                                await documentModule.addParagraph(assistOS.space.id, chapterId, paragraphText);
+                                await documentModule.addParagraph(chapterId, paragraphText);
                             }
 
                             if ((pIndex + 1) % 5 === 0) {
@@ -299,9 +299,9 @@ export class AddDocumentModal {
             // Only redirect if we successfully created at least one document
             if (lastCreatedDocId) {
                 console.log('Redirecting to the created document...');
-                await assistOS.UI.changeToDynamicPage(`space-application-page`, `${assistOS.space.id}/Space/document-view-page/${lastCreatedDocId}`);
+                await assistOS.UI.changeToDynamicPage("document-view-page", `document-view-page/${lastCreatedDocId}`);
             } else {
-                await assistOS.UI.changeToDynamicPage(`space-application-page`, `${assistOS.space.id}/Space/document-list-page`);
+                await assistOS.UI.changeToDynamicPage("documents-page", "documents-page");
             }
         } catch (error) {
             console.error('Unexpected error:', error);

@@ -72,7 +72,7 @@ export class ContentsTable{
         if(!document.comments.toc) {
             delete document.comments.toc;
         }
-        await documentModule.updateDocument(assistOS.space.id, document.id,
+        await documentModule.updateDocument(document.id,
             document.title,
             document.docId,
             document.infoText,

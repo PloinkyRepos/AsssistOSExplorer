@@ -1272,11 +1272,11 @@ const normalizePosition = (array, position) => {
 const documentModule = {
     documentTypes: DOCUMENT_TYPES,
     Chapter,
-    async loadDocument(_spaceId, documentIdOrPath) {
+    async loadDocument(documentIdOrPath) {
         const path = documentStore.resolvePath(documentIdOrPath);
         return documentStore.load(path);
     },
-    async getDocuments(_spaceId) {
+    async getDocuments() {
         // Local implementation returns cached documents metadata
         return Array.from(documentStore.documents.values()).map((document) => ({
             id: document.id,
@@ -1288,7 +1288,7 @@ const documentModule = {
             path: document.path
         }));
     },
-    async getDocument(_spaceId, documentIdOrPath, queryParams = {}) {
+    async getDocument(documentIdOrPath, queryParams = {}) {
         const document = await getDocumentModel(documentIdOrPath);
         if (!queryParams || Object.keys(queryParams).length === 0) {
             return document;
@@ -1306,7 +1306,7 @@ const documentModule = {
 
         return document;
     },
-    async updateDocument(_spaceId, documentIdOrPath, title, docId, infoText, commands, comments) {
+    async updateDocument(documentIdOrPath, title, docId, infoText, commands, comments) {
         const document = await getDocumentModel(documentIdOrPath);
         if (typeof title === 'string') {
             document.title = title;
@@ -1331,20 +1331,20 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return document;
     },
-    async createDocument(_spaceId, documentData) {
+    async createDocument(documentData) {
         const path = documentData?.path;
         if (!path) {
             throw new Error('createDocument requires a path in documentData.');
         }
         return documentStore.create(path, documentData);
     },
-    async deleteDocument(_spaceId, documentIdOrPath) {
+    async deleteDocument(documentIdOrPath) {
         const path = documentStore.resolvePath(documentIdOrPath);
         await documentStore.service.fs.writeRaw(path, '');
         documentStore.remove(path);
         return true;
     },
-    async addChapter(_spaceId, documentIdOrPath, title, commands, comments, position) {
+    async addChapter(documentIdOrPath, title, commands, comments, position) {
         const document = await getDocumentModel(documentIdOrPath);
         const chapterMetadata = createChapterMetadataDefaults({
             title: title ?? 'New Chapter',
@@ -1368,7 +1368,7 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return chapter;
     },
-    async deleteChapter(_spaceId, documentIdOrPath, chapterId) {
+    async deleteChapter(documentIdOrPath, chapterId) {
         const document = await getDocumentModel(documentIdOrPath);
         const index = document.chapters.findIndex((chapter) => chapter.id === chapterId);
         if (index === -1) {
@@ -1381,7 +1381,7 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return removed;
     },
-    async changeChapterOrder(_spaceId, documentIdOrPath, chapterId, position) {
+    async changeChapterOrder(documentIdOrPath, chapterId, position) {
         const document = await getDocumentModel(documentIdOrPath);
         const chapters = document.chapters;
         const currentIndex = chapters.findIndex((chapter) => chapter.id === chapterId);
@@ -1397,7 +1397,7 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return chapter;
     },
-    async getChapter(_spaceId, documentIdOrPathOrChapterId, maybeChapterId) {
+    async getChapter(documentIdOrPathOrChapterId, maybeChapterId) {
         if (typeof maybeChapterId === 'undefined') {
             const chapterId = documentIdOrPathOrChapterId;
             const located = findDocumentByChapterId(chapterId);
@@ -1414,7 +1414,7 @@ const documentModule = {
         }
         return chapter;
     },
-    async updateChapter(_spaceId, documentIdOrPathOrChapterId, maybeChapterId, titleArg, commandsArg, commentsArg) {
+    async updateChapter(documentIdOrPathOrChapterId, maybeChapterId, titleArg, commandsArg, commentsArg) {
         let chapterId;
         let title;
         let commands;
@@ -1464,7 +1464,7 @@ const documentModule = {
         await persistDocument(documentPath ?? documentReference.path ?? documentIdOrPathOrChapterId);
         return chapter;
     },
-    async setChapterVarValue(_spaceId, documentIdOrPath, chapterId, varName, value, options = undefined) {
+    async setChapterVarValue(documentIdOrPath, chapterId, varName, value, options = undefined) {
         const document = await getDocumentModel(documentIdOrPath);
         const chapter = document.chapters.find((item) => item.id === chapterId);
         if (!chapter) {
@@ -1490,43 +1490,43 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return variable;
     },
-    async setChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
+    async setChapterAudioAttachment(documentIdOrPath, chapterId, payload) {
         return setChapterMediaAttachment('audio', documentIdOrPath, chapterId, payload);
     },
-    async setChapterImageAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
+    async setChapterImageAttachment(documentIdOrPath, chapterId, payload) {
         return setChapterMediaAttachment('image', documentIdOrPath, chapterId, payload);
     },
-    async setChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, payload) {
+    async setChapterVideoAttachment(documentIdOrPath, chapterId, payload) {
         return setChapterMediaAttachment('video', documentIdOrPath, chapterId, payload);
     },
-    async setParagraphAudioAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, payload) {
+    async setParagraphAudioAttachment(documentIdOrPath, chapterId, paragraphId, payload) {
         return setParagraphMediaAttachment('audio', documentIdOrPath, chapterId, paragraphId, payload);
     },
-    async setParagraphImageAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, payload) {
+    async setParagraphImageAttachment(documentIdOrPath, chapterId, paragraphId, payload) {
         return setParagraphMediaAttachment('image', documentIdOrPath, chapterId, paragraphId, payload);
     },
-    async setParagraphVideoAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, payload) {
+    async setParagraphVideoAttachment(documentIdOrPath, chapterId, paragraphId, payload) {
         return setParagraphMediaAttachment('video', documentIdOrPath, chapterId, paragraphId, payload);
     },
-    async deleteChapterAudioAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
+    async deleteChapterAudioAttachment(documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('audio', documentIdOrPath, chapterId, identifier);
     },
-    async deleteParagraphAudioAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, identifier) {
+    async deleteParagraphAudioAttachment(documentIdOrPath, chapterId, paragraphId, identifier) {
         return deleteParagraphMediaAttachment('audio', documentIdOrPath, chapterId, paragraphId, identifier);
     },
-    async deleteParagraphImageAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, identifier) {
+    async deleteParagraphImageAttachment(documentIdOrPath, chapterId, paragraphId, identifier) {
         return deleteParagraphMediaAttachment('image', documentIdOrPath, chapterId, paragraphId, identifier);
     },
-    async deleteParagraphVideoAttachment(_spaceId, documentIdOrPath, chapterId, paragraphId, identifier) {
+    async deleteParagraphVideoAttachment(documentIdOrPath, chapterId, paragraphId, identifier) {
         return deleteParagraphMediaAttachment('video', documentIdOrPath, chapterId, paragraphId, identifier);
     },
-    async deleteChapterImageAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
+    async deleteChapterImageAttachment(documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('image', documentIdOrPath, chapterId, identifier);
     },
-    async deleteChapterVideoAttachment(_spaceId, documentIdOrPath, chapterId, identifier) {
+    async deleteChapterVideoAttachment(documentIdOrPath, chapterId, identifier) {
         return deleteChapterMediaAttachment('video', documentIdOrPath, chapterId, identifier);
     },
-    async addParagraph(_spaceId, chapterId, paragraphText = '', metadata = null, paragraphType = 'markdown', position = null) {
+    async addParagraph(chapterId, paragraphText = '', metadata = null, paragraphType = 'markdown', position = null) {
         let documentReference;
         let chapterReference;
         for (const document of documentStore.documents.values()) {
@@ -1559,7 +1559,7 @@ const documentModule = {
         await persistDocument(documentReference.path);
         return paragraph;
     },
-    async deleteParagraph(_spaceId, chapterId, paragraphId) {
+    async deleteParagraph(chapterId, paragraphId) {
         let documentReference;
         let chapterReference;
         for (const document of documentStore.documents.values()) {
@@ -1584,7 +1584,7 @@ const documentModule = {
         await persistDocument(documentReference.path);
         return removed;
     },
-    async changeParagraphOrder(_spaceId, chapterId, paragraphId, position) {
+    async changeParagraphOrder(chapterId, paragraphId, position) {
         let documentReference;
         let chapterReference;
         for (const document of documentStore.documents.values()) {
@@ -1612,7 +1612,7 @@ const documentModule = {
         await persistDocument(documentReference.path);
         return paragraph;
     },
-    async getParagraph(_spaceId, paragraphId) {
+    async getParagraph(paragraphId) {
         for (const document of documentStore.documents.values()) {
             for (const chapter of document.chapters) {
                 const paragraph = chapter.paragraphs.find((item) => item.id === paragraphId);
@@ -1623,7 +1623,7 @@ const documentModule = {
         }
         throw new Error(`Paragraph ${paragraphId} not found.`);
     },
-    async updateParagraph(_spaceId, chapterId, paragraphId, text, commands, comments) {
+    async updateParagraph(chapterId, paragraphId, text, commands, comments) {
         let documentReference;
         let paragraphReference;
         for (const document of documentStore.documents.values()) {
@@ -1660,7 +1660,7 @@ const documentModule = {
         await persistDocument(documentReference.path);
         return paragraphReference;
     },
-    async getDocCommandsParsed(_spaceId, documentIdOrPath) {
+    async getDocCommandsParsed(documentIdOrPath) {
         const document = await getDocumentModel(documentIdOrPath);
         const commands = [];
         const appendCommands = (commandBlock, chapterId, paragraphId) => {
@@ -1681,11 +1681,11 @@ const documentModule = {
         });
         return commands;
     },
-    async getDocumentSnapshots(_spaceId, documentIdOrPath) {
+    async getDocumentSnapshots(documentIdOrPath) {
         const path = documentStore.resolvePath(documentIdOrPath);
         return documentStore.snapshots.get(path) ?? [];
     },
-    async addDocumentSnapshot(_spaceId, documentIdOrPath, snapshotData) {
+    async addDocumentSnapshot(documentIdOrPath, snapshotData) {
         const path = documentStore.resolvePath(documentIdOrPath);
         const document = await getDocumentModel(documentIdOrPath);
         const snapshots = documentStore.snapshots.get(path) ?? [];
@@ -1701,7 +1701,7 @@ const documentModule = {
         documentStore.snapshots.set(path, snapshots);
         return snapshotRecord;
     },
-    async deleteDocumentSnapshot(_spaceId, documentIdOrPath, snapshotId) {
+    async deleteDocumentSnapshot(documentIdOrPath, snapshotId) {
         const path = documentStore.resolvePath(documentIdOrPath);
         const snapshots = documentStore.snapshots.get(path) ?? [];
         const index = snapshots.findIndex((snapshot) => snapshot.id === snapshotId);
@@ -1712,7 +1712,7 @@ const documentModule = {
         documentStore.snapshots.set(path, snapshots);
         return true;
     },
-    async restoreDocumentSnapshot(_spaceId, documentIdOrPath, snapshotId) {
+    async restoreDocumentSnapshot(documentIdOrPath, snapshotId) {
         const path = documentStore.resolvePath(documentIdOrPath);
         const snapshots = documentStore.snapshots.get(path) ?? [];
         const snapshot = snapshots.find((item) => item.id === snapshotId);
@@ -1724,7 +1724,7 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return restored;
     },
-    async getDocumentTasks(_spaceId, documentIdOrPath) {
+    async getDocumentTasks(documentIdOrPath) {
         const document = await getDocumentModel(documentIdOrPath);
         const tasks = [];
         document.chapters.forEach((chapter) => {
@@ -1735,7 +1735,7 @@ const documentModule = {
         });
         return tasks;
     },
-    async setVarValue(_spaceId, documentIdOrPath, varName, value) {
+    async setVarValue(documentIdOrPath, varName, value) {
         const document = await getDocumentModel(documentIdOrPath);
         let variable = document.variables.find((item) => item.name === varName);
         if (!variable) {
@@ -1746,7 +1746,7 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return variable;
     },
-    async updateChapterCommands(_spaceId, documentIdOrPath, chapterId, commands) {
+    async updateChapterCommands(documentIdOrPath, chapterId, commands) {
         const document = await getDocumentModel(documentIdOrPath);
         const chapter = document.chapters.find((item) => item.id === chapterId);
         if (!chapter) {
@@ -1758,7 +1758,7 @@ const documentModule = {
         await persistDocument(documentIdOrPath);
         return chapter.commands;
     },
-    async updateParagraphCommands(_spaceId, chapterId, paragraphId, commands) {
+    async updateParagraphCommands(chapterId, paragraphId, commands) {
         const paragraph = await this.getParagraph(null, paragraphId);
         const currentCommands = normalizeCommandString(paragraph.commands ?? '', '');
         paragraph.commands = normalizeCommandString(commands, currentCommands);
@@ -1789,7 +1789,7 @@ const documentModule = {
     async redoOperation() {
         return false;
     },
-    async selectDocumentItem(_spaceId, _documentId, itemId, data = {}) {
+    async selectDocumentItem(_documentId, itemId, data = {}) {
         return {
             itemId,
             data
@@ -1798,7 +1798,7 @@ const documentModule = {
     async deselectDocumentItem() {
         return true;
     },
-    async updateDocId(_spaceId, documentIdOrPath, newDocId) {
+    async updateDocId(documentIdOrPath, newDocId) {
         const document = await getDocumentModel(documentIdOrPath);
         document.docId = newDocId;
         document.metadata.id = newDocId;

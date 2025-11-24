@@ -1,4 +1,4 @@
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 const documentModule = assistOS.loadModule("document");
 export class RunScript {
     constructor(element, invalidate) {
@@ -75,7 +75,7 @@ export class RunScript {
     async saveDocId(button) {
         let input = this.element.querySelector("#docID");
         this._document.docId = input.value;
-        await documentModule.updateDocId(assistOS.space.id, this._document.id, this._document.docId);
+        await documentModule.updateDocId(this._document.id, this._document.docId);
         button.classList.add("hidden");
     }
     async runScript(button) {
@@ -88,7 +88,7 @@ export class RunScript {
             args.push(input.value);
         }
         try {
-            await spaceModule.runCode(assistOS.space.id, assistOS.UI.unsanitize(this._document.infoText), args);
+            await workspaceModule.runCode(assistOS.UI.unsanitize(this._document.infoText), args);
         } catch (e) {
             button.classList.remove("disabled");
             assistOS.UI.closeModal(this.element);

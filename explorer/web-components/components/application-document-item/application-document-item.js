@@ -13,6 +13,6 @@ export class   ApplicationDocumentItem{
     }
     async openDocument(_target) {
         let documentId = this.element.getAttribute("data-id");
-        await assistOS.UI.changeToDynamicPage("space-application-page", `${assistOS.space.id}/Space/document-view-page/${documentId}`);
+        await assistOS.UI.changeToDynamicPage("document-view-page", `document-view-page/${documentId}`);
     }
 }

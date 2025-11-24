@@ -28,7 +28,7 @@ export class ParagraphItem {
     async subscribeToParagraphEvents() {
         //this.boundOnParagraphUpdate = this.onParagraphUpdate.bind(this);
         //await assistOS.NotificationRouter.subscribeToDocument(this._document.id, this.paragraph.id, this.boundOnParagraphUpdate);
-        this.plugins = assistOS.space.plugins.paragraph;
+        this.plugins = assistOS.workspace.plugins.paragraph;
     }
 
     async beforeRender() {
@@ -82,7 +82,7 @@ export class ParagraphItem {
         let paragraphText = this.element.querySelector(".paragraph-text");
         paragraphText.innerHTML = this.paragraph.text;
         paragraphText.style.height = paragraphText.scrollHeight + 'px';
-        if (assistOS.space.currentParagraphId === this.paragraph.id) {
+        if (assistOS.workspace.currentParagraphId === this.paragraph.id) {
             paragraphText.click();
             //this.element.scrollIntoView({behavior: "smooth", block: "center"});
         }
@@ -101,7 +101,7 @@ export class ParagraphItem {
         }
         this.paragraph.comments.status = status;
         this.paragraph.comments.plugin = pluginName;
-        await documentModule.updateParagraph(assistOS.space.id, this.chapter.id, this.paragraph.id,
+        await documentModule.updateParagraph(this.chapter.id, this.paragraph.id,
             this.paragraph.text,
             this.paragraph.commands,
             this.paragraph.comments);
@@ -116,13 +116,13 @@ export class ParagraphItem {
         } else {
             delete this.paragraph.comments.pluginLastOpened;
         }
-        await documentModule.updateParagraph(assistOS.space.id, this.chapter.id, this.paragraph.id,
+        await documentModule.updateParagraph(this.chapter.id, this.paragraph.id,
             this.paragraph.text,
             this.paragraph.commands,
             this.paragraph.comments);
     }
     async onParagraphUpdate(type) {
-        this.paragraph = await documentModule.getParagraph(assistOS.space.id, this.paragraph.id);
+        this.paragraph = await documentModule.getParagraph(this.paragraph.id);
         let paragraphText = this.element.querySelector(".paragraph-text");
         paragraphText.value = assistOS.UI.unsanitize(this.paragraph.text);
         //this.documentPresenter.toggleEditingState(true);
@@ -139,15 +139,15 @@ export class ParagraphItem {
         }
 
         let currentParagraphIndex = this.chapter.paragraphs.findIndex(paragraph => paragraph.id === this.paragraph.id);
-        await documentModule.deleteParagraph(assistOS.space.id, this.chapter.id, this.paragraph.id);
+        await documentModule.deleteParagraph(this.chapter.id, this.paragraph.id);
         if (this.chapter.paragraphs.length > 0) {
             if (currentParagraphIndex === 0) {
-                assistOS.space.currentParagraphId = this.chapter.paragraphs[0].id;
+                assistOS.workspace.currentParagraphId = this.chapter.paragraphs[0].id;
             } else {
-                assistOS.space.currentParagraphId = this.chapter.paragraphs[currentParagraphIndex - 1].id;
+                assistOS.workspace.currentParagraphId = this.chapter.paragraphs[currentParagraphIndex - 1].id;
             }
         } else {
-            assistOS.space.currentParagraphId = null;
+            assistOS.workspace.currentParagraphId = null;
         }
         let chapterElement = this.element.closest("chapter-item");
         let chapterPresenter = chapterElement.webSkelPresenter;
@@ -167,7 +167,7 @@ export class ParagraphItem {
         await this.documentPresenter.stopTimer(false);
         const currentParagraphIndex = this.chapter.paragraphs.findIndex(paragraph => paragraph.id === this.paragraph.id);
         const position = this.getNewPosition(currentParagraphIndex, direction);
-        await documentModule.changeParagraphOrder(assistOS.space.id, this.chapter.id, this.paragraph.id, position);
+        await documentModule.changeParagraphOrder(this.chapter.id, this.paragraph.id, position);
         let chapterPresenter = this.element.closest("chapter-item").webSkelPresenter;
         chapterPresenter.changeParagraphOrder(this.paragraph.id, position);
     }
@@ -178,13 +178,13 @@ export class ParagraphItem {
     }
 
     async saveParagraph(paragraph) {
-        if (!this.paragraph || assistOS.space.currentParagraphId !== this.paragraph.id || !this.element.closest("body")) {
+        if (!this.paragraph || assistOS.workspace.currentParagraphId !== this.paragraph.id || !this.element.closest("body")) {
             return;
         }
         let paragraphText = assistOS.UI.sanitize(paragraph.value);
         if (paragraphText !== this.paragraph.text) {
             this.paragraph.text = paragraphText
-            await documentModule.updateParagraph(assistOS.space.id, this.chapter.id, this.paragraph.id,
+            await documentModule.updateParagraph(this.chapter.id, this.paragraph.id,
                 paragraphText, this.paragraph.commands, this.paragraph.comments);
         }
     }
@@ -203,7 +203,7 @@ export class ParagraphItem {
     }
 
     async highlightParagraph() {
-        assistOS.space.currentParagraphId = this.paragraph.id;
+        assistOS.workspace.currentParagraphId = this.paragraph.id;
         this.switchParagraphToolbar("on");
         let paragraphText = this.element.querySelector('.paragraph-text');
         paragraphText.classList.add("focused");
@@ -236,7 +236,7 @@ export class ParagraphItem {
                 if (textChanged) {
                     await this.saveParagraph(paragraphText);
                 }
-                assistOS.space.currentParagraphId = null;
+                assistOS.workspace.currentParagraphId = null;
 
                 let pluginContainer = this.element.querySelector(`.paragraph-plugin-container`);
                 let pluginElement = pluginContainer.firstElementChild;
@@ -320,7 +320,7 @@ export class ParagraphItem {
         this.paragraph.text = paragraph.text;
         this.paragraph.commands = paragraph.commands;
         this.paragraph.comments = JSON.parse(JSON.stringify(paragraph.comments));
-        await documentModule.updateParagraph(assistOS.space.id, this.chapter.id, this.paragraph.id,
+        await documentModule.updateParagraph(this.chapter.id, this.paragraph.id,
             this.paragraph.text,
             this.paragraph.commands,
             this.paragraph.comments);
@@ -392,7 +392,7 @@ export class ParagraphItem {
         if(comment !== undefined){
             this.paragraph.comments.messages.push(comment);
             UIUtils.changeCommentIndicator(this.element, this.paragraph.comments.messages);
-            await documentModule.updateParagraph(assistOS.space.id, this.chapter.id, this.paragraph.id,
+            await documentModule.updateParagraph(this.chapter.id, this.paragraph.id,
                 this.paragraph.text,
                 this.paragraph.commands,
                 this.paragraph.comments);
@@ -400,7 +400,7 @@ export class ParagraphItem {
     }
     async updateComments(comments) {
         this.paragraph.comments.messages = comments;
-        await documentModule.updateParagraph(assistOS.space.id, this.chapter.id,
+        await documentModule.updateParagraph(this.chapter.id,
             this.paragraph.id,
             this.paragraph.text,
             this.paragraph.commands,

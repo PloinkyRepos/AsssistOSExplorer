@@ -449,11 +449,11 @@ export class FileExp {
                 try {
                     const documentModule = window.assistOS?.loadModule?.('document');
                     if (documentModule) {
-                        const doc = await documentModule.loadDocument(window.assistOS.space.id, filePath);
+                        const doc = await documentModule.loadDocument(filePath);
                         this.state.documentId = doc?.id ?? null;
                         if (doc?.id) {
-                            window.assistOS.space.currentDocumentId = doc.id;
-                            window.assistOS.space.currentDocumentPath = filePath;
+                            window.assistOS.workspace.currentDocumentId = doc.id;
+                            window.assistOS.workspace.currentDocumentPath = filePath;
                         }
                     }
                 } catch (docError) {
@@ -477,7 +477,7 @@ export class FileExp {
             try {
                 const documentModule = window.assistOS?.loadModule?.('document');
                 if (documentModule) {
-                    const doc = await documentModule.loadDocument(window.assistOS.space.id, this.state.selectedPath);
+                    const doc = await documentModule.loadDocument(this.state.selectedPath);
                     this.state.documentId = doc?.id ?? null;
                 }
             } catch (error) {
@@ -508,11 +508,11 @@ export class FileExp {
                 try {
                     const documentModule = window.assistOS?.loadModule?.('document');
                     if (documentModule) {
-                        const doc = await documentModule.loadDocument(window.assistOS.space.id, this.state.selectedPath);
+                        const doc = await documentModule.loadDocument(this.state.selectedPath);
                         this.state.documentId = doc?.id ?? null;
                         if (doc?.id) {
-                            window.assistOS.space.currentDocumentId = doc.id;
-                            window.assistOS.space.currentDocumentPath = this.state.selectedPath;
+                            window.assistOS.workspace.currentDocumentId = doc.id;
+                            window.assistOS.workspace.currentDocumentPath = this.state.selectedPath;
                         }
                     }
                 } catch (docError) {

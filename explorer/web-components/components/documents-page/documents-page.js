@@ -3,7 +3,7 @@ export class DocumentsPage {
     constructor(element, invalidate) {
         this.documents = [];
         this.refreshDocuments = async () => {
-            this.documents = await documentModule.getDocuments(assistOS.space.id);
+            this.documents = await documentModule.getDocuments();
         };
         this.invalidate = invalidate;
         this.id = "documents";
@@ -17,8 +17,8 @@ export class DocumentsPage {
         this.documents.forEach((document) => {
             this.tableRows += `<document-item data-presenter="document-item" data-id="${document.id}" data-local-action="editAction"></document-item>`;
         });
-        if (assistOS.space.loadingDocuments) {
-            assistOS.space.loadingDocuments.forEach((taskId) => {
+        if (assistOS.workspace.loadingDocuments) {
+            assistOS.workspace.loadingDocuments.forEach((taskId) => {
                 this.tableRows += `<div data-id="${taskId}" class="placeholder-document">
                 <div class="loading-icon small"></div>
             </div>`;
@@ -52,8 +52,7 @@ export class DocumentsPage {
 
     async editAction(_target) {
         let documentId = this.getDocumentId(_target);
-        await assistOS
-        await assistOS.UI.changeToDynamicPage("space-application-page", `${assistOS.space.id}/Space/document-view-page/${documentId}`);
+        await assistOS.UI.changeToDynamicPage("document-view-page", `document-view-page/${documentId}`);
     }
 
     async deleteAction(_target) {
@@ -62,7 +61,7 @@ export class DocumentsPage {
         if (!confirmation) {
             return;
         }
-        await documentModule.deleteDocument(assistOS.space.id, this.getDocumentId(_target));
+        await documentModule.deleteDocument(this.getDocumentId(_target));
         this.invalidate(this.refreshDocuments);
     }
 
@@ -81,12 +80,12 @@ export class DocumentsPage {
         const handleFile = async (file) => {
             const formData = new FormData();
             formData.append("file", file);
-            const taskId = await documentModule.importDocument(assistOS.space.id, formData);
+            const taskId = await documentModule.importDocument(formData);
             fileInput.remove();
-            if (!assistOS.space.loadingDocuments) {
-                assistOS.space.loadingDocuments = [];
+            if (!assistOS.workspace.loadingDocuments) {
+                assistOS.workspace.loadingDocuments = [];
             }
-            assistOS.space.loadingDocuments.push(taskId);
+            assistOS.workspace.loadingDocuments.push(taskId);
 
             if (!this.boundOnImportFinish) {
                 this.onImportFinish = (importResult) => {
@@ -97,7 +96,7 @@ export class DocumentsPage {
                         if (importResult.overriddenPersonalities.length > 0) {
                             alert("The document has been imported. The following personalities have been overridden: " + importResult.overriddenPersonalities.join(", "));
                         }
-                        assistOS.space.loadingDocuments = assistOS.space.loadingDocuments.filter((taskId) => taskId !== taskId);
+                        assistOS.workspace.loadingDocuments = assistOS.workspace.loadingDocuments.filter((taskId) => taskId !== taskId);
                         let placeholder = document.querySelector(`.placeholder-document[data-id="${taskId}"]`);
                         if (placeholder) {
                             placeholder.remove();
@@ -108,7 +107,7 @@ export class DocumentsPage {
                 this.boundOnImportFinish = this.onImportFinish.bind(this);
             }
 
-            //await assistOS.NotificationRouter.subscribeToSpace(assistOS.space.id, taskId, this.boundOnImportFinish);
+            //await assistOS.NotificationRouter.subscribeToWorkspace?.(taskId, this.boundOnImportFinish);
             this.invalidate(this.refreshDocuments);
         }
         let fileInput = document.createElement('input');

@@ -101,7 +101,7 @@ export class PrintDocumentModal {
 
     async openSettingsPage(eventTarget) {
         await this.closeModal();
-        await assistOS.UI.changeToDynamicPage("settings-page", `${assistOS.space.id}/Space/settings-page`, {subpage: "settingsTab"});
+        await assistOS.UI.changeToDynamicPage("settings-page", "settings-page", {subpage: "settingsTab"});
     }
 
     async previewDocument() {

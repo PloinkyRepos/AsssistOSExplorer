@@ -1,5 +1,5 @@
 import {videoUtils} from "/explorer/imports.js";
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 export class EffectItem{
     constructor(element, invalidate) {
         this.element = element;
@@ -38,7 +38,7 @@ export class EffectItem{
             this.audioElement.addEventListener("play", this.handlePlay);
             this.audioElement.addEventListener("timeupdate", this.handleEnd.bind(this.audioElement, button));
         }
-        this.audioElement.src = await spaceModule.getAudioURL(this.effect.id);
+        this.audioElement.src = await workspaceModule.getAudioURL(this.effect.id);
         this.audioElement.startTime = this.effect.start;
         this.audioElement.endTime = this.effect.end;
         await this.audioElement.play();

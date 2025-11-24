@@ -1,4 +1,4 @@
-let spaceModule = assistOS.loadModule("space");
+let workspaceModule = assistOS.loadModule("workspace");
 
 export class EditVariableValue {
     constructor(element, invalidate) {
@@ -161,7 +161,7 @@ export class EditVariableValue {
             let row = this.variable.value.data[rowIndex];
             row[columnName] = value;
             //update server side
-            let computedRow = await spaceModule.updateTableRow(assistOS.space.id, this.docId, this.variable.varName, row);
+            let computedRow = await workspaceModule.updateTableRow(this.docId, this.variable.varName, row);
             for(let column of this.computedColumns){
                 let cellToUpdate = this.element.querySelector(`input[data-id="${truid}"][data-column="${column.name}"]`);
                 if(cellToUpdate){
@@ -190,7 +190,7 @@ export class EditVariableValue {
         for(let column of this.columns){
             newRow[column.name] = "";
         }
-        let computedRow = await spaceModule.insertTableRow(assistOS.space.id, this.docId, this.variable.varName, newRow, position);
+        let computedRow = await workspaceModule.insertTableRow(this.docId, this.variable.varName, newRow, position);
         if(position == null){
             position = this.variable.value.data.length; // Default to append
         }
@@ -216,7 +216,7 @@ export class EditVariableValue {
         let rowIndex = this.variable.value.data.findIndex(row => row.id === truid);
         this.variable.value.data.splice(rowIndex, 1);
         //update server side
-        await spaceModule.deleteTableRow(assistOS.space.id, this.docId, this.variable.varName, truid);
+        await workspaceModule.deleteTableRow(this.docId, this.variable.varName, truid);
     }
     saveVarValue(targetElement) {
         let varValue;

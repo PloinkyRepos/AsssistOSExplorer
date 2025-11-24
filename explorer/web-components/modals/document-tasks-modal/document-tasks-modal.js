@@ -10,7 +10,7 @@ export class DocumentTasksModal {
         this.invalidate(async () => {
             this.boundOnListUpdate = this.onListUpdate.bind(this);
             await assistOS.NotificationRouter.subscribeToDocument(this.documentId, "tasksList", this.boundOnListUpdate);
-            this.tasks = await documentModule.getDocumentTasks(assistOS.space.id, this.documentId);
+            this.tasks = await documentModule.getDocumentTasks(this.documentId);
         })
     }
     async onListUpdate(data){
@@ -74,11 +74,11 @@ export class DocumentTasksModal {
     }
     async runAllTasks(button){
         button.classList.add("disabled");
-        await utilModule.runAllDocumentTasks(assistOS.space.id, this.documentId);
+        await utilModule.runAllDocumentTasks(this.documentId);
     }
     async cancelAllTasks(button){
         button.classList.add("disabled");
-        await utilModule.cancelAllDocumentTasks(assistOS.space.id, this.documentId);
+        await utilModule.cancelAllDocumentTasks(this.documentId);
     }
     checkButtonsState(){
         let runningTasks = 0;

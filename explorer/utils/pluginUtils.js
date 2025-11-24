@@ -128,23 +128,23 @@ export function normalizeRuntimePlugins(runtimePlugins) {
 }
 
 export function mergeRuntimePluginsIntoAssistOS(assistOS, runtimePlugins) {
-    if (!assistOS || !assistOS.space) {
+    if (!assistOS || !assistOS.workspace) {
         return;
     }
 
-    const spacePlugins = assistOS.space.plugins || {};
-    assistOS.space.plugins = spacePlugins;
+    const workspacePlugins = assistOS.workspace.plugins || {};
+    assistOS.workspace.plugins = workspacePlugins;
 
     for (const [location, entries] of Object.entries(runtimePlugins || {})) {
         if (!Array.isArray(entries) || entries.length === 0) {
             continue;
         }
 
-        if (!Array.isArray(spacePlugins[location])) {
-            spacePlugins[location] = [];
+        if (!Array.isArray(workspacePlugins[location])) {
+            workspacePlugins[location] = [];
         }
 
-        const bucket = spacePlugins[location];
+        const bucket = workspacePlugins[location];
 
         for (const entry of entries) {
             if (!entry || typeof entry !== 'object' || !isNonEmptyString(entry.component)) {
@@ -263,7 +263,7 @@ export async function registerRuntimeComponent(webSkel, componentDefinition) {
 }
 
 async function openPlugin(componentName, type, context, presenter, autoPin = false) {
-    const registry = assistOS.space.plugins[type];
+    const registry = assistOS.workspace.plugins[type];
     if (!Array.isArray(registry)) {
         console.warn(`[runtime-plugins] Missing plugin registry for type "${type}".`);
         return;
@@ -324,7 +324,7 @@ async function initializePlugin(plugin) {
 }
 
 async function renderPluginIcons(containerElement, type) {
-    const registry = assistOS.space.plugins[type];
+    const registry = assistOS.workspace.plugins[type];
     const plugins = Array.isArray(registry) ? registry : [];
     for (const plugin of plugins) {
         if (!plugin) continue;

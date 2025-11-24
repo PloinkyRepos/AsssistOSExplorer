@@ -145,7 +145,7 @@ export class ImagePlugin {
         }
         if (this.chapter.commands.compileVideo) {
             delete this.chapter.commands.compileVideo;
-            await documentModule.updateChapterCommands(assistOS.space.id, this._document.id, this.chapter.id, this.chapter.commands);
+            await documentModule.updateChapterCommands(this._document.id, this.chapter.id, this.chapter.commands);
         }
     }
 
@@ -224,14 +224,13 @@ export class ImagePlugin {
         try {
             if (this.isParagraphContext) {
                 await documentModule.deleteParagraphImageAttachment(
-                    assistOS.space.id,
                     this._document.id,
                     this.chapter.id,
                     this.paragraph.id,
                     targetIdentifier
                 );
             } else {
-                await documentModule.deleteChapterImageAttachment(assistOS.space.id, this._document.id, this.chapter.id, targetIdentifier);
+                await documentModule.deleteChapterImageAttachment(this._document.id, this.chapter.id, targetIdentifier);
             }
             await this.invalidateCompiledVideo();
             await this.populateExistingImages();
@@ -245,7 +244,6 @@ export class ImagePlugin {
     async persistImageAttachment(payload) {
         if (this.isParagraphContext) {
             return documentModule.setParagraphImageAttachment(
-                assistOS.space.id,
                 this._document.id,
                 this.chapter.id,
                 this.paragraph.id,
@@ -253,7 +251,6 @@ export class ImagePlugin {
             );
         }
         return documentModule.setChapterImageAttachment(
-            assistOS.space.id,
             this._document.id,
             this.chapter.id,
             payload

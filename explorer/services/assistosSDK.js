@@ -248,15 +248,15 @@ const sanitizePathSegment = (value = '') => {
         .trim() || 'document';
 };
 
-const resolveDocumentContext = (spaceState) => {
-    if (!spaceState) {
+const resolveDocumentContext = (workspaceState) => {
+    if (!workspaceState) {
         return null;
     }
-    const metadataId = typeof spaceState.currentDocumentMetadataId === 'string'
-        ? spaceState.currentDocumentMetadataId.trim()
+    const metadataId = typeof workspaceState.currentDocumentMetadataId === 'string'
+        ? workspaceState.currentDocumentMetadataId.trim()
         : '';
-    const docId = typeof spaceState.currentDocumentId === 'string'
-        ? spaceState.currentDocumentId.trim()
+    const docId = typeof workspaceState.currentDocumentId === 'string'
+        ? workspaceState.currentDocumentId.trim()
         : '';
     const raw = metadataId || docId;
     if (!raw) {
@@ -427,7 +427,11 @@ const buildNotificationRouter = () => ({
         console.warn('[assistOS] Notifications not implemented in local shim.');
     },
     unsubscribe() {},
-    publish() {}
+    publish() {},
+    subscribeToWorkspace() {
+        console.warn('[assistOS] Workspace notifications are not implemented in the local shim.');
+    },
+    unsubscribeFromWorkspace() {}
 });
 
 const buildAgentModule = () => ({
@@ -445,12 +449,12 @@ const buildAgentModule = () => ({
     }
 });
 
-const buildSpaceModule = (spaceState) => {
+const buildWorkspaceModule = (workspaceState) => {
     const callExplorerTool = async (toolName, args = {}) => {
         return assistosSDK.callTool(EXPLORER_AGENT_ID, toolName, args);
     };
 
-    const getDocumentContext = () => resolveDocumentContext(spaceState);
+    const getDocumentContext = () => resolveDocumentContext(workspaceState);
     const getDocumentMediaStorageRoot = createDocumentMediaStorageResolver(callExplorerTool);
 
     const ensureDirectory = async (directoryPath) => {
@@ -466,11 +470,10 @@ const buildSpaceModule = (spaceState) => {
     };
 
     return {
-        async getSpaceStatus() {
+        async getWorkspaceStatus() {
             return {
-                spaceGlobalId: spaceState.id,
                 status: 'active',
-                plugins: spaceState.plugins
+                plugins: workspaceState.plugins
             };
         },
         async getCommands() {
@@ -574,7 +577,7 @@ const buildApplicationModule = (ui) => {
     };
 
     return {
-        async getApplicationManifest(_spaceId, applicationId) {
+        async getApplicationManifest(applicationId) {
             if (!manifestCache.has(applicationId)) {
                 manifestCache.set(applicationId, {
                     id: applicationId,
@@ -587,7 +590,7 @@ const buildApplicationModule = (ui) => {
             }
             return manifestCache.get(applicationId);
         },
-        async getApplicationComponent(_spaceId, applicationId, appComponentsDirPath, component) {
+        async getApplicationComponent(applicationId, appComponentsDirPath, component) {
             const baseDir = (appComponentsDirPath || componentsDirPath).replace(/\/+$/, '');
             const componentDir = `${component.name}/${component.name}`;
 
@@ -607,7 +610,7 @@ const buildApplicationModule = (ui) => {
                 presenterModule
             };
         },
-        async getApplicationFile(_spaceId, _applicationId, filePath) {
+        async getApplicationFile(filePath) {
             return fetchText(filePath);
         }
     };
@@ -623,18 +626,22 @@ const buildLlmModule = () => ({
 const createAssistOS = (options = {}) => {
     const { ui: providedUI, modules: moduleOverrides, runtimePlugins } = options;
     const ui = providedUI ?? buildUIHelpers();
-    const spaceState = {
-        id: 'local-space',
-        plugins: JSON.parse(JSON.stringify(runtimePlugins)),
+    const workspaceState = {
+        plugins: JSON.parse(JSON.stringify(runtimePlugins || {})),
+        currentDocumentId: null,
+        currentDocumentMetadataId: null,
+        currentDocumentPath: null,
         currentChapterId: null,
         currentParagraphId: null,
         loadingDocuments: []
     };
 
+    const workspaceModule = buildWorkspaceModule(workspaceState);
     const modules = new Map([
         ['document', documentModule],
         ['agent', buildAgentModule()],
-        ['space', buildSpaceModule(spaceState)],
+        ['workspace', workspaceModule],
+        ['space', workspaceModule],
         ['gallery', buildGalleryModule()],
         ['util', buildUtilModule()],
         ['application', buildApplicationModule(ui)],
@@ -655,7 +662,7 @@ const createAssistOS = (options = {}) => {
         return modules.get(name);
     };
 
-    return {
+    const assistOSInstance = {
         loadModule,
         UI: ui,
         showToast: (...args) => {
@@ -666,7 +673,7 @@ const createAssistOS = (options = {}) => {
             console.log(`[${type}] ${message}`);
             return undefined;
         },
-        space: spaceState,
+        workspace: workspaceState,
         user: {
             email: DEFAULT_EMAIL
         },
@@ -690,6 +697,18 @@ const createAssistOS = (options = {}) => {
             return undefined;
         }
     };
+
+    Object.defineProperty(assistOSInstance, 'space', {
+        get() {
+            console.warn('[assistOS] assistOS.space is deprecated. Use assistOS.workspace instead.');
+            return workspaceState;
+        },
+        set() {
+            console.warn('[assistOS] assistOS.space is deprecated and cannot be reassigned. Use assistOS.workspace instead.');
+        }
+    });
+
+    return assistOSInstance;
 };
 
 export const initialiseAssistOS = (options = {}) => {

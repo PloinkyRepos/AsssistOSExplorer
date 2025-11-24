@@ -1,5 +1,5 @@
 const galleryModule = assistOS.loadModule("gallery");
-const spaceModule = assistOS.loadModule("space");
+const workspaceModule = assistOS.loadModule("workspace");
 
 export class InsertImageModal {
     constructor(element, invalidate) {
@@ -12,7 +12,7 @@ export class InsertImageModal {
                 <input type="file" id="file" class="hidden" accept="image/*">
             </div>`;
         this.invalidate(async () => {
-            this.galleries = await galleryModule.getGalleriesMetadata(assistOS.space.id);
+            this.galleries = await galleryModule.getGalleriesMetadata();
         });
         this.selectedImage = "";
         this.element.classList.add("maintain-focus");
@@ -91,7 +91,7 @@ export class InsertImageModal {
     }
 
     async openGallery(_target, galleryId) {
-        this.selectedGallery = await galleryModule.getGallery(assistOS.space.id, galleryId);
+        this.selectedGallery = await galleryModule.getGallery(galleryId);
         let allImages = this.selectedGallery.openAIHistory.concat(this.selectedGallery.midjourneyHistory);
         allImages.sort((a, b) => {
             return new Date(b.createdAt) - new Date(a.createdAt);
@@ -138,7 +138,7 @@ export class InsertImageModal {
         this.imgElement = new Image();
         reader.onload = async (e) => {
             const uint8Array = new Uint8Array(e.target.result);
-            let imageId = await spaceModule.putImage(uint8Array);
+            let imageId = await workspaceModule.putImage(uint8Array);
             reader.onload = async (e) => {
                 this.imgElement.onload = async () => {
                     const canvas = document.createElement('canvas');
@@ -167,4 +167,3 @@ export class InsertImageModal {
     }
 
 }
-
