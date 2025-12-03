@@ -8,7 +8,8 @@ const MEDIA_ATTACHMENT_TYPES = {
         collectionKey: 'audio',
         modelFactory: (payload) => ({
             id: payload.id ?? '',
-            url: payload.path,
+            url: payload.url || payload.path || null,
+            name: payload.name,
             volume: toFiniteNumber(payload.volume, 50),
             loop: Boolean(payload.loop),
             duration: toFiniteNumber(payload.duration, payload.end ?? 0),
@@ -23,7 +24,8 @@ const MEDIA_ATTACHMENT_TYPES = {
         modelFactory: (payload) => {
             const model = {
                 id: payload.id ?? '',
-                url: payload.path,
+                url: payload.url || payload.path || null,
+                name: payload.name,
                 loop: Boolean(payload.loop),
                 duration: toFiniteNumber(payload.duration, payload.end ?? 0),
                 start: toFiniteNumber(payload.start, 0),
@@ -41,7 +43,7 @@ const MEDIA_ATTACHMENT_TYPES = {
         collectionKey: 'image',
         modelFactory: (payload) => ({
             id: payload.id ?? '',
-            url: payload.path,
+            url: payload.url || payload.path || null,
             loop: Boolean(payload.loop),
             duration: toFiniteNumber(payload.duration, payload.end ?? 0),
             start: toFiniteNumber(payload.start, 0),
@@ -238,20 +240,27 @@ const normalizeAttachmentPayload = (payload = {}) => {
     if (!payload || typeof payload !== 'object') {
         return null;
     }
+    const normalized = {};
+    if (typeof payload.id === 'string' && payload.id.trim()) {
+        normalized.id = payload.id.trim();
+    }
     const path = typeof payload.path === 'string' && payload.path.trim()
         ? payload.path.trim()
         : (typeof payload.url === 'string' ? payload.url.trim() : '');
-    if (!path) {
+    if (path) {
+        normalized.path = path;
+        if (!normalized.id) {
+            const derivedId = extractMediaIdFromPath(path);
+            if (derivedId) {
+                normalized.id = derivedId;
+            }
+        }
+    }
+    if (!normalized.id) {
         return null;
     }
-    const normalized = { path };
-    if (typeof payload.id === 'string' && payload.id.trim()) {
-        normalized.id = payload.id.trim();
-    } else {
-        const derivedId = extractMediaIdFromPath(path);
-        if (derivedId) {
-            normalized.id = derivedId;
-        }
+    if (typeof payload.name === 'string' && payload.name.trim()) {
+        normalized.name = payload.name.trim();
     }
     if (payload.volume !== undefined) {
         normalized.volume = toFiniteNumber(payload.volume, 0);
@@ -342,9 +351,9 @@ const appendAttachmentCommand = (commandsBlock = '', type, payload = null, optio
         ? identifierHint
         : generateMediaCommandIdentifier(config.kind);
     const pairs = [
-        ['id', normalized.id ?? extractMediaIdFromPath(normalized.path)],
-        ['path', normalized.path]
+        ['id', normalized.id ?? extractMediaIdFromPath(normalized.path)]
     ];
+    if (normalized.name !== undefined) pairs.push(['name', normalized.name]);
     if (normalized.volume !== undefined) pairs.push(['volume', normalized.volume]);
     if (normalized.duration !== undefined) pairs.push(['duration', normalized.duration]);
     if (normalized.loop !== undefined) pairs.push(['loop', normalized.loop]);

@@ -25,15 +25,15 @@ export class FFMpegImageToVideo {
     beforeRender() {}
 
     getIdentifier(attachment) {
-        return attachment.name || attachment.identifier;
+        return attachment.id || attachment.name || attachment.identifier;
     }
 
     loadAttachments() {
         const host = this.paragraph || this.chapter;
         const media = host?.mediaAttachments || {};
-        this.state.availableAttachments.image = (Array.isArray(media.image) ? media.image : []).filter(this.getIdentifier);
-        this.state.availableAttachments.audio = (Array.isArray(media.audio) ? media.audio : []).filter(this.getIdentifier);
-        this.state.availableAttachments.video = (Array.isArray(media.video) ? media.video : []).filter(this.getIdentifier);
+        this.state.availableAttachments.image = (Array.isArray(media.image) ? media.image : []).filter((att) => this.getIdentifier(att));
+        this.state.availableAttachments.audio = (Array.isArray(media.audio) ? media.audio : []).filter((att) => this.getIdentifier(att));
+        this.state.availableAttachments.video = (Array.isArray(media.video) ? media.video : []).filter((att) => this.getIdentifier(att));
 
         // Default selection: select all available attachments unless a command already exists
         if (!this.state.varName) {
@@ -70,11 +70,12 @@ export class FFMpegImageToVideo {
 
         const itemsHtml = attachments.map(att => {
             const identifier = this.getIdentifier(att);
+            const label = att.name || identifier;
             return `
             <div class="ffmpeg-attachment-item">
                 <label>
-                    <input type="checkbox" data-type="${type}" data-name="${identifier}" ${selected.has(identifier) ? "checked" : ""}>
-                    ${identifier}
+                    <input type="checkbox" data-type="${type}" data-id="${identifier}" data-name="${label}" ${selected.has(identifier) ? "checked" : ""}>
+                    ${label}
                 </label>
             </div>`;
         }).join("");
@@ -83,11 +84,12 @@ export class FFMpegImageToVideo {
 
         container.querySelectorAll('input[type="checkbox"]').forEach(checkbox => {
             checkbox.addEventListener("change", (event) => {
-                const { type, name } = event.target.dataset;
+                const { type, id } = event.target.dataset;
+                if (!type || !id) return;
                 if (event.target.checked) {
-                    this.state.selectedAttachments[type].add(name);
+                    this.state.selectedAttachments[type].add(id);
                 } else {
-                    this.state.selectedAttachments[type].delete(name);
+                    this.state.selectedAttachments[type].delete(id);
                 }
             });
         });
@@ -126,13 +128,13 @@ export class FFMpegImageToVideo {
             const selectedNames = Array.from(this.state.selectedAttachments[stateKey]);
             if (selectedNames.length === 0) return "";
             const attachmentsById = byIdentifier(stateKey);
-            const paths = selectedNames
+            const ids = selectedNames
                 .map((name) => attachmentsById.get(name))
                 .filter(Boolean)
-                .map((att) => att.path || att.url || att.downloadUrl || att.localPath)
+                .map((att) => att.id)
                 .filter(Boolean);
-            if (!paths.length) return "";
-            return `${commandLabel} [createJsonArray ${paths.map(quote).join(" ")}]`;
+            if (!ids.length) return "";
+            return `${commandLabel} [createJsonArray ${ids.map(quote).join(" ")}]`;
         };
 
         const imagePart = buildPart("images", "image");
@@ -218,20 +220,15 @@ export class FFMpegImageToVideo {
             const match = line.match(regex);
             if (!match) return;
             const tokens = match[1].match(/"([^"]+)"|\\S+/g) || [];
-            const paths = tokens
-                .map(t => t.replace(/^"/, "").replace(/"$/, "").replace(/\\\"/g, '"').replace(/^\$/, "").replace(/\.path$/, "").replace(/^@/, ""))
+            const ids = tokens
+                .map(t => t.replace(/^"/, "").replace(/"$/, "").replace(/\\\"/g, '"').trim())
                 .filter(Boolean);
 
-            if (!paths.length) return;
+            if (!ids.length) return;
             const attachmentsById = byIdentifier(stateKey);
-            const attachments = Array.from(attachmentsById.values());
-            paths.forEach((p) => {
-                // prefer path match, fallback to identifier
-                const found = attachments.find(att => att.path === p || att.url === p || att.downloadUrl === p || att.localPath === p);
-                if (found) {
-                    this.state.selectedAttachments[stateKey].add(this.getIdentifier(found));
-                } else if (attachmentsById.has(p)) {
-                    this.state.selectedAttachments[stateKey].add(p);
+            ids.forEach((id) => {
+                if (attachmentsById.has(id)) {
+                    this.state.selectedAttachments[stateKey].add(id);
                 }
             });
         };

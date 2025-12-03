@@ -1,4 +1,5 @@
 import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readVideoMetadata } from '../utils/mediaUpload.js';
+import { buildBlobUrl } from "../utils/blobUrl.js";
 import { getContextualElement } from "../utils/pluginUtils.js";
 const documentModule = assistOS.loadModule("document");
 
@@ -41,17 +42,20 @@ export class VideoPlugin {
                 metadataReader: readVideoMetadata
             });
             const duration = Number.isFinite(metadata?.duration) ? metadata.duration : 0;
+            const blobId = uploadResult.id ?? uploadResult.filename ?? `video-${Date.now()}`;
             const payload = {
-                id: uploadResult.id ?? uploadResult.filename ?? `video-${Date.now()}`,
+                id: blobId,
                 loop: false,
                 start: 0,
                 end: duration,
                 duration,
                 volume: 100,
-                path: uploadResult.downloadUrl,
-                name: uploadResult.filename || file?.name
+                name: uploadResult.filename || file?.name || blobId
             };
-            await this.persistVideoAttachment(payload);
+            const result = await this.persistVideoAttachment(payload);
+            if (result?.identifier) {
+                payload.identifier = result.identifier;
+            }
             await this.invalidateCompiledVideo();
             await this.populateExistingVideos();
             assistOS.showToast("Video saved.", "success");
@@ -116,9 +120,9 @@ export class VideoPlugin {
         const volume = Number.isFinite(item.volume) ? item.volume : 100;
         const start = Number.isFinite(item.start) ? item.start : 0;
         const endValue = Number.isFinite(item.end) ? item.end : (Number.isFinite(item.duration) ? item.duration : 0);
-        const url = sanitize(item.url || item.path || '');
+        const url = sanitize(buildBlobUrl(item.id));
         const durationLabel = Number.isFinite(item.duration) ? `${item.duration.toFixed(2)}s` : '';
-        const identifier = item.name;
+        const identifier = item.identifier || item.id || item.name;
         const identifierAttr = escapeAttr(identifier);
         const saveAction = identifier ? `saveVideoItem ${identifier}` : 'saveVideoItem';
         const deleteAction = identifier ? `deleteVideoItem ${identifier}` : 'deleteVideoItem';
@@ -166,7 +170,9 @@ export class VideoPlugin {
             return;
         }
         const attachments = this.getVideoAttachments();
-        const current = attachments.find((attachment) => attachment.name === targetIdentifier);
+        const current = attachments.find((attachment) =>
+            attachment.identifier === targetIdentifier || attachment.id === targetIdentifier || attachment.name === targetIdentifier
+        );
         if (!current) {
             return;
         }

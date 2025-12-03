@@ -1,4 +1,5 @@
 import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readImageMetadata } from '../utils/mediaUpload.js';
+import { buildBlobUrl } from "../utils/blobUrl.js";
 import { getContextualElement } from "../utils/pluginUtils.js";
 const documentModule = assistOS.loadModule("document");
 
@@ -50,15 +51,21 @@ export class ImagePlugin {
                 maxFileSize: 100 * 1024 * 1024,
                 metadataReader: readImageMetadata
             });
+            if (file?.type === 'image/svg+xml' || (file?.name || '').toLowerCase().endsWith('.svg')) {
+                throw new Error('SVG images are not supported. Please upload PNG/JPG.');
+            }
+            const blobId = uploadResult.id ?? uploadResult.filename ?? `image-${Date.now()}`;
             const payload = {
-                id: uploadResult.id ?? uploadResult.filename ?? `image-${Date.now()}`,
+                id: blobId,
                 width: metadata?.width ?? 0,
                 height: metadata?.height ?? 0,
                 size: file?.size ?? 0,
-                path: uploadResult.downloadUrl,
-                name: uploadResult.filename || file?.name
+                name: uploadResult.filename || file?.name || blobId
             };
-            await this.persistImageAttachment(payload);
+            const result = await this.persistImageAttachment(payload);
+            if (result?.identifier) {
+                payload.identifier = result.identifier;
+            }
             await this.invalidateCompiledVideo();
             await this.populateExistingImages();
             assistOS.showToast("Image saved.", "success");
@@ -129,10 +136,10 @@ export class ImagePlugin {
             return String(value).replace(/"/g, '&quot;');
         };
         const title = sanitize(item.name || item.filename || item.id || `Image ${index + 1}`);
-        const url = sanitize(item.url || item.path || '');
+        const url = sanitize(buildBlobUrl(item.id));
         const sizeLabel = formatFileSize(item.size);
         const dimensions = item.width && item.height ? `${item.width}×${item.height}` : '--';
-        const identifier = item.name;
+        const identifier = item.identifier || item.id || item.name;
         const identifierAttr = escapeAttr(identifier);
         const deleteAction = identifier ? `deleteImageItem ${identifier}` : 'deleteImageItem';
         const deleteActionAttr = escapeAttr(deleteAction);

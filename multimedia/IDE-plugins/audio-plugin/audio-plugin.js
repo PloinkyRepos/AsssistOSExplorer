@@ -1,4 +1,5 @@
 import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readAudioMetadata } from '../utils/mediaUpload.js';
+import { buildBlobUrl } from "../utils/blobUrl.js";
 import { getContextualElement } from "../utils/pluginUtils.js";
 const documentModule = assistOS.loadModule("document");
 
@@ -41,17 +42,20 @@ export class AudioPlugin {
                 metadataReader: readAudioMetadata
             });
             const duration = Number.isFinite(metadata?.duration) ? metadata.duration : 0;
+            const blobId = uploadResult.id ?? uploadResult.filename ?? `audio-${Date.now()}`;
             const payload = {
-                id: uploadResult.id ?? uploadResult.filename ?? `audio-${Date.now()}`,
+                id: blobId,
                 volume: 50,
                 duration,
                 loop: false,
                 start: 0,
                 end: duration,
-                path: uploadResult.downloadUrl,
-                name: uploadResult.filename || file?.name
+                name: uploadResult.filename || file?.name || blobId
             };
-            await this.persistAudioAttachment(payload);
+            const result = await this.persistAudioAttachment(payload);
+            if (result?.identifier) {
+                payload.identifier = result.identifier;
+            }
             await this.invalidateCompiledVideo();
             await this.populateExistingAudio();
             assistOS.showToast("Audio saved.", "success");
@@ -126,9 +130,9 @@ export class AudioPlugin {
         const volume = Number.isFinite(item.volume) ? item.volume : 50;
         const start = Number.isFinite(item.start) ? item.start : 0;
         const endValue = Number.isFinite(item.end) ? item.end : (Number.isFinite(item.duration) ? item.duration : 0);
-        const url = sanitize(item.url || item.path || '');
+        const url = sanitize(buildBlobUrl(item.id));
         const durationLabel = Number.isFinite(item.duration) ? `${item.duration.toFixed(2)}s` : '';
-        const identifier = item.name;
+        const identifier = item.identifier || item.id || item.name;
         const identifierAttr = escapeAttr(identifier);
         const saveAction = identifier ? `saveAudioItem ${identifier}` : 'saveAudioItem';
         const deleteAction = identifier ? `deleteAudioItem ${identifier}` : 'deleteAudioItem';
@@ -180,7 +184,9 @@ export class AudioPlugin {
             return;
         }
         const attachments = this.getAudioAttachments();
-        const current = attachments.find((attachment) => attachment.name === targetIdentifier);
+        const current = attachments.find((attachment) =>
+            attachment.identifier === targetIdentifier || attachment.id === targetIdentifier || attachment.name === targetIdentifier
+        );
         if (!current) {
             return;
         }
