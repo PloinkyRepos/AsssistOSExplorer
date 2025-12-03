@@ -13,6 +13,7 @@ import {
     decodeValueDeep,
     decodeString,
     normalizeCommandString,
+    normalizeCommandQuotes,
     decodeBase64,
     encodeBase64,
     clone,
@@ -49,7 +50,7 @@ const deriveChapterBackgroundVideo = (chapter = {}) => {
 const hydrateParagraphModel = (paragraph, chapterId) => {
     const metadata = createParagraphMetadataDefaults(paragraph.metadata ?? {});
     const comments = createCommentDefaults(metadata.comments);
-    const commands = normalizeCommandString(paragraph.commands ?? metadata.commands ?? '');
+    const commands = normalizeCommandQuotes(normalizeCommandString(paragraph.commands ?? metadata.commands ?? ''));
     paragraph.commands = commands;
     metadata.commands = commands;
 
@@ -79,7 +80,7 @@ const hydrateChapterModel = (chapter, index) => {
     const comments = createCommentDefaults(metadata.comments);
     const headingLevel = chapter.heading?.level ?? 2;
     const headingText = chapter.heading?.text ?? metadata.title ?? `Chapter ${index + 1}`;
-    const commands = normalizeCommandString(chapter.commands ?? metadata.commands ?? '');
+    const commands = normalizeCommandQuotes(normalizeCommandString(chapter.commands ?? metadata.commands ?? ''));
     chapter.commands = commands;
     metadata.commands = commands;
     let paragraphs = (chapter.paragraphs ?? []).map((paragraph) => hydrateParagraphModel(paragraph, metadata.id));
@@ -137,7 +138,7 @@ const hydrateDocumentModel = (document, path) => {
     }
 
     let chapters = (document.chapters ?? []).map((chapter, index) => hydrateChapterModel(chapter, index));
-    const commands = normalizeCommandString(document.commands ?? metadata.commands ?? '');
+    const commands = normalizeCommandQuotes(normalizeCommandString(document.commands ?? metadata.commands ?? ''));
     document.commands = commands;
     metadata.commands = commands;
 
@@ -182,7 +183,7 @@ const syncParagraphMetadata = (paragraph = {}) => {
         return;
     }
     paragraph.comments = createCommentDefaults(paragraph.comments);
-    const commands = normalizeCommandString(paragraph.commands ?? paragraph.metadata?.commands ?? '');
+    const commands = normalizeCommandQuotes(normalizeCommandString(paragraph.commands ?? paragraph.metadata?.commands ?? ''));
     paragraph.commands = commands;
     const overrides = {
         ...(paragraph.metadata ?? {}),
@@ -206,7 +207,7 @@ const syncChapterMetadata = (chapter = {}) => {
         return;
     }
     chapter.comments = createCommentDefaults(chapter.comments);
-    const commands = normalizeCommandString(chapter.commands ?? chapter.metadata?.commands ?? '');
+    const commands = normalizeCommandQuotes(normalizeCommandString(chapter.commands ?? chapter.metadata?.commands ?? ''));
     chapter.commands = commands;
     const overrides = {
         ...(chapter.metadata ?? {}),
@@ -232,7 +233,7 @@ const syncDocumentMetadata = (document = {}) => {
         return;
     }
     document.comments = createCommentDefaults(document.comments);
-    const commands = normalizeCommandString(document.commands ?? document.metadata?.commands ?? '');
+    const commands = normalizeCommandQuotes(normalizeCommandString(document.commands ?? document.metadata?.commands ?? ''));
     document.commands = commands;
     const overrides = {
         ...(document.metadata ?? {}),

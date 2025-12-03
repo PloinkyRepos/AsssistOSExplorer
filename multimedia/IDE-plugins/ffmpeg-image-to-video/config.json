@@ -1,0 +1,10 @@
+{
+    "component": "ffmpeg-image-to-video",
+    "location": ["chapter", "paragraph"],
+    "tooltip": "FFmpeg: Images to Video",
+    "icon": "./icon.svg",
+    "presenter": "FFMpegImageToVideo",
+    "type": "modal",
+    "autoPin": false,
+    "dependencies": []
+}

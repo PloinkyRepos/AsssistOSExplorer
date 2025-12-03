@@ -1,46 +1,19 @@
 import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readAudioMetadata } from '../utils/mediaUpload.js';
+import { getContextualElement } from "../utils/pluginUtils.js";
 const documentModule = assistOS.loadModule("document");
-
-function getContext(element) {
-    const rawContext = element.getAttribute("data-context") || "{}";
-    try {
-        return JSON.parse(decodeURIComponent(rawContext));
-    } catch (error) {
-        console.error("Invalid chapter context", error);
-        return {};
-    }
-}
-
 
 export class AudioPlugin {
     constructor(element, invalidate) {
         this.element = element;
         this.invalidate = invalidate;
-        const context = getContext(this.element);
-        this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
-        this.paragraphId = context.paragraphId || this.element.getAttribute("data-paragraph-id");
-        this.hostSelector = context.hostSelector || "";
-        const documentViewPage = document.querySelector("document-view-page");
-        this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
-        if (!this.documentPresenter || !this.documentPresenter._document) {
-            throw new Error("Document context is required for audio plugin.");
-        }
-        this._document = this.documentPresenter._document;
-        this.chapter = this._document.chapters.find((chapter) => chapter.id === this.chapterId);
-        if (!this.chapter) {
-            throw new Error(`Chapter ${this.chapterId} not found.`);
-        }
-        if (!Array.isArray(this.chapter.variables)) {
-            this.chapter.variables = [];
-        }
-        if (this.paragraphId) {
-            this.isParagraphContext = true;
-            this.paragraph = this.chapter.paragraphs?.find((paragraph) => paragraph.id === this.paragraphId) || null;
-            if (!this.paragraph) {
-                throw new Error(`Paragraph ${this.paragraphId} not found.`);
-            }
-        } else {
-            this.isParagraphContext = false;
+
+        const { document, chapter, paragraph } = getContextualElement(element);
+        this._document = document;
+        this.chapter = chapter;
+        this.paragraph = paragraph;
+        this.isParagraphContext = !!this.paragraph;
+
+        if (!this.isParagraphContext) {
             this.ensureBackgroundSoundHydrated();
         }
         this.invalidate();
@@ -105,21 +78,7 @@ export class AudioPlugin {
     }
 
     async closeModal() {
-        const presenter = this.getHostPresenter();
-        if (presenter?.closePlugin) {
-            await presenter.closePlugin("", false);
-        } else {
-            this.resetPluginButtonState();
-        }
         assistOS.UI.closeModal(this.element);
-        this.requestContextRerender();
-    }
-
-    resetPluginButtonState() {
-        const pluginIcon = this.getPluginIconElement();
-        if (pluginIcon) {
-            pluginIcon.classList.remove("chapter-highlight-plugin");
-        }
     }
 
     async invalidateCompiledVideo() {
@@ -134,20 +93,11 @@ export class AudioPlugin {
 
     async populateExistingAudio() {
         await this.renderAudioList();
-        this.refreshChapterPreviewIcons();
     }
 
     getAudioAttachments() {
-        if (this.isParagraphContext) {
-            if (Array.isArray(this.paragraph?.mediaAttachments?.audio) && this.paragraph.mediaAttachments.audio.length) {
-                return this.paragraph.mediaAttachments.audio;
-            }
-            return [];
-        }
-        if (Array.isArray(this.chapter.mediaAttachments?.audio) && this.chapter.mediaAttachments.audio.length) {
-            return this.chapter.mediaAttachments.audio;
-        }
-        return this.chapter.backgroundSound ? [this.chapter.backgroundSound] : [];
+        const host = this.paragraph || this.chapter;
+        return host?.mediaAttachments?.audio || [];
     }
 
     async renderAudioList() {
@@ -178,7 +128,7 @@ export class AudioPlugin {
         const endValue = Number.isFinite(item.end) ? item.end : (Number.isFinite(item.duration) ? item.duration : 0);
         const url = sanitize(item.url || item.path || '');
         const durationLabel = Number.isFinite(item.duration) ? `${item.duration.toFixed(2)}s` : '';
-        const identifier = typeof item.identifier === 'string' ? item.identifier : '';
+        const identifier = item.name;
         const identifierAttr = escapeAttr(identifier);
         const saveAction = identifier ? `saveAudioItem ${identifier}` : 'saveAudioItem';
         const deleteAction = identifier ? `deleteAudioItem ${identifier}` : 'deleteAudioItem';
@@ -230,7 +180,7 @@ export class AudioPlugin {
             return;
         }
         const attachments = this.getAudioAttachments();
-        const current = attachments.find((attachment) => attachment.identifier === targetIdentifier);
+        const current = attachments.find((attachment) => attachment.name === targetIdentifier);
         if (!current) {
             return;
         }
@@ -239,10 +189,7 @@ export class AudioPlugin {
         const endInput = container.querySelector('[data-field="end"]');
         const loopInput = container.querySelector('[data-field="loop"]');
         const payload = {
-            identifier: targetIdentifier,
-            id: current.id,
-            path: current.url || current.path || '',
-            name: current.name || current.filename,
+            ...current, // Preserve all existing properties
             volume: Number.parseFloat(volumeInput?.value ?? '50'),
             start: Number.parseFloat(startInput?.value ?? '0'),
             end: Number.parseFloat(endInput?.value ?? '0'),
@@ -251,7 +198,6 @@ export class AudioPlugin {
         try {
             await this.persistAudioAttachment(payload);
             await this.invalidateCompiledVideo();
-            this.refreshChapterPreviewIcons();
             this.updateAudioAttachmentModel(current, payload);
             const nextState = {
                 volume: payload.volume,
@@ -341,10 +287,7 @@ export class AudioPlugin {
         if (!target) {
             return;
         }
-        target.volume = payload.volume;
-        target.start = payload.start;
-        target.end = payload.end;
-        target.loop = payload.loop;
+        Object.assign(target, payload);
     }
 
     async deleteAudioItem(triggerElement, identifier) {
@@ -394,36 +337,5 @@ export class AudioPlugin {
         if (!Array.isArray(this.chapter.mediaAttachments.audio)) {
             this.chapter.mediaAttachments.audio = [];
         }
-    }
-
-    getHostPresenter() {
-        const hostElement = this.getHostElement();
-        return hostElement?.webSkelPresenter || null;
-    }
-
-    getPluginIconElement() {
-        const hostElement = this.getHostElement();
-        if (!hostElement) {
-            return null;
-        }
-        return hostElement.querySelector(`.icon-container.${this.element.tagName.toLowerCase()}`);
-    }
-
-    refreshChapterPreviewIcons() {
-        const presenter = this.getHostPresenter();
-        presenter?.renderInfoIcons?.();
-    }
-
-    requestContextRerender() {
-        const presenter = this.getHostPresenter();
-        if (presenter?.invalidate) {
-            presenter.invalidate();
-        } else if (this.documentPresenter?.invalidate) {
-            this.documentPresenter.invalidate();
-        }
-    }
-
-    getHostElement() {
-        return this.hostSelector ? document.querySelector(this.hostSelector) : null;
     }
 }

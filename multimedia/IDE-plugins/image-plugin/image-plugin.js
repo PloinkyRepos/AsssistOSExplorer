@@ -1,15 +1,6 @@
 import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readImageMetadata } from '../utils/mediaUpload.js';
+import { getContextualElement } from "../utils/pluginUtils.js";
 const documentModule = assistOS.loadModule("document");
-
-function getContext(element) {
-    const rawContext = element.getAttribute("data-context") || "{}";
-    try {
-        return JSON.parse(decodeURIComponent(rawContext));
-    } catch (error) {
-        console.error("Invalid chapter context", error);
-        return {};
-    }
-}
 
 const formatFileSize = (size = 0) => {
     if (!size) {
@@ -25,29 +16,14 @@ export class ImagePlugin {
     constructor(element, invalidate) {
         this.element = element;
         this.invalidate = invalidate;
-        const context = getContext(this.element);
-        this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
-        this.paragraphId = context.paragraphId || this.element.getAttribute("data-paragraph-id");
-        this.hostSelector = context.hostSelector || "";
-        this.hostType = context.hostType || "";
-        const documentViewPage = document.querySelector("document-view-page");
-        this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
-        if (!this.documentPresenter || !this.documentPresenter._document) {
-            throw new Error("Document context is required for image plugin.");
-        }
-        this._document = this.documentPresenter._document;
-        this.chapter = this._document.chapters.find((chapter) => chapter.id === this.chapterId);
-        if (!Array.isArray(this.chapter.variables)) {
-            this.chapter.variables = [];
-        }
-        if (this.paragraphId) {
-            this.isParagraphContext = true;
-            this.paragraph = this.chapter.paragraphs?.find((paragraph) => paragraph.id === this.paragraphId) || null;
-            if (!this.paragraph) {
-                throw new Error(`Paragraph ${this.paragraphId} not found.`);
-            }
-        } else {
-            this.isParagraphContext = false;
+
+        const { document, chapter, paragraph } = getContextualElement(element);
+        this._document = document;
+        this.chapter = chapter;
+        this.paragraph = paragraph;
+        this.isParagraphContext = !!this.paragraph;
+
+        if (!this.isParagraphContext) {
             this.ensureBackgroundImageHydrated();
         }
         this.invalidate();
@@ -109,21 +85,7 @@ export class ImagePlugin {
     }
 
     async closeModal() {
-        const presenter = this.getHostPresenter();
-        if (presenter?.closePlugin) {
-            await presenter.closePlugin("", false);
-        } else {
-            this.resetPluginButtonState();
-        }
         assistOS.UI.closeModal(this.element);
-        this.requestChapterRerender();
-    }
-
-    resetPluginButtonState() {
-        const pluginIcon = this.getPluginIconElement();
-        if (pluginIcon) {
-            pluginIcon.classList.remove("chapter-highlight-plugin");
-        }
     }
 
     async invalidateCompiledVideo() {
@@ -138,20 +100,11 @@ export class ImagePlugin {
 
     async populateExistingImages() {
         await this.renderImageList();
-        this.refreshChapterPreviewIcons();
     }
 
     getImageAttachments() {
-        if (this.isParagraphContext) {
-            if (Array.isArray(this.paragraph?.mediaAttachments?.image) && this.paragraph.mediaAttachments.image.length) {
-                return this.paragraph.mediaAttachments.image;
-            }
-            return [];
-        }
-        if (Array.isArray(this.chapter.mediaAttachments?.image) && this.chapter.mediaAttachments.image.length) {
-            return this.chapter.mediaAttachments.image;
-        }
-        return this.chapter.backgroundImage ? [this.chapter.backgroundImage] : [];
+        const host = this.paragraph || this.chapter;
+        return host?.mediaAttachments?.image || [];
     }
 
     async renderImageList() {
@@ -179,7 +132,7 @@ export class ImagePlugin {
         const url = sanitize(item.url || item.path || '');
         const sizeLabel = formatFileSize(item.size);
         const dimensions = item.width && item.height ? `${item.width}×${item.height}` : '--';
-        const identifier = typeof item.identifier === 'string' ? item.identifier : '';
+        const identifier = item.name;
         const identifierAttr = escapeAttr(identifier);
         const deleteAction = identifier ? `deleteImageItem ${identifier}` : 'deleteImageItem';
         const deleteActionAttr = escapeAttr(deleteAction);
@@ -249,38 +202,5 @@ export class ImagePlugin {
         if (!Array.isArray(this.chapter.mediaAttachments.image)) {
             this.chapter.mediaAttachments.image = [];
         }
-    }
-
-    getPluginIconElement() {
-        const hostElement = this.getHostElement();
-        if (!hostElement) {
-            return null;
-        }
-        return hostElement.querySelector(`.icon-container.${this.element.tagName.toLowerCase()}`);
-    }
-
-    refreshChapterPreviewIcons() {
-        const chapterPresenter = this.getHostPresenter();
-        if (chapterPresenter?.renderInfoIcons) {
-            chapterPresenter.renderInfoIcons();
-        }
-    }
-
-    requestChapterRerender() {
-        const presenter = this.getHostPresenter();
-        if (presenter?.invalidate) {
-            presenter.invalidate();
-        } else if (this.documentPresenter?.invalidate) {
-            this.documentPresenter.invalidate();
-        }
-    }
-
-    getHostPresenter() {
-        const hostElement = this.getHostElement();
-        return hostElement?.webSkelPresenter || null;
-    }
-
-    getHostElement() {
-        return this.hostSelector ? document.querySelector(this.hostSelector) : null;
     }
 }

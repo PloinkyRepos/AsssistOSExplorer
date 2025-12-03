@@ -60,6 +60,30 @@ const normalizeCommandString = (value, fallback = '') => {
     return String(value);
 };
 
+const normalizeCommandQuotes = (commandStr = '') => {
+    const lines = String(commandStr || '').split('\n');
+    const parsed = lines.map((line) => {
+        const trimmed = line.trim();
+        if (!trimmed.startsWith('@')) return line;
+        // Skip ffmpegImageToVideo to preserve quoted JSON arrays (they contain escaped quotes/backslashes).
+        if (/ffmpegImageToVideo/.test(trimmed)) return line;
+        if (!/attach/.test(trimmed)) return line;
+        const tokens = trimmed.match(/"([^"]*)"|\S+/g) || [];
+        const normalized = tokens.map((tok) => {
+            const quoted = tok.startsWith('"') && tok.endsWith('"');
+            if (quoted) {
+                const inner = tok.slice(1, -1);
+                if (!/\s/.test(inner)) {
+                    return inner;
+                }
+            }
+            return tok;
+        });
+        return normalized.join(' ');
+    });
+    return parsed.join('\n');
+};
+
 const scriptCommandNames = new Set(['macro', 'jsdef', 'form', 'prompt']);
 
 const toFiniteNumber = (value, fallback = 0) => {
@@ -274,5 +298,6 @@ export {
     encodeBase64,
     clone,
     createCommentDefaults,
-    normalizePosition
+    normalizePosition,
+    normalizeCommandQuotes
 };

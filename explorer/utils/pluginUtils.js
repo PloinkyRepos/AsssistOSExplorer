@@ -209,7 +209,19 @@ export async function registerRuntimeComponent(webSkel, componentDefinition) {
     const resourceManager = webSkel.ResourceManager;
 
     const ensurePresenterRegistered = async () => {
-        if (presenterClassName && presenterModule && presenterModule[presenterClassName]) {
+        if (
+            presenterClassName
+            && presenterModule
+            && typeof presenterModule === 'object'
+            && presenterModule[presenterClassName]
+        ) {
+            resourceManager.components[name] = resourceManager.components[name] || {
+                html: '',
+                css: [],
+                presenter: null,
+                loadingPromise: null,
+                isPromiseFulfilled: false
+            };
             resourceManager.registerPresenter(name, presenterModule[presenterClassName]);
         }
     };

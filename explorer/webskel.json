@@ -1,236 +1,241 @@
 {
-    "rootDir": "/explorer/web-components",
-    "components": [
-        {
-            "name": "file-exp",
-            "type": "pages",
-            "presenterClassName": "FileExp"
-        },
-        {
-            "name": "file-editor",
-            "type": "components",
-            "presenterClassName": "FileEditor"
-        },
-        {
-            "name": "document-view-page",
-            "type": "components",
-            "presenterClassName": "DocumentViewPage"
-        },
-        {
-            "name": "chapter-item",
-            "type": "components",
-            "presenterClassName": "ChapterItem"
-        },
-        {
-            "name": "paragraph-item",
-            "type": "components",
-            "presenterClassName": "ParagraphItem"
-        },
-        {
-            "name": "contents-table",
-            "type": "components",
-            "presenterClassName": "ContentsTable"
-        },
-        {
-            "name": "comments-section",
-            "type": "components",
-            "presenterClassName": "CommentsSection"
-        },
-        {
-            "name": "references-table",
-            "type": "components",
-            "presenterClassName": "ReferencesTable"
-        },
-        {
-            "name": "custom-select",
-            "type": "components",
-            "presenterClassName": "CustomSelect"
-        },
-        {
-            "name": "edit-variables",
-            "type": "components",
-            "presenterClassName": "EditVariables"
-        },
-        {
-            "name": "files-menu",
-            "type": "components",
-            "presenterClassName": "FilesMenu"
-        },
-        {
-            "name": "task-item",
-            "type": "components",
-            "presenterClassName": "TaskItem"
-        },
-        {
-            "name": "table-editor",
-            "type": "components",
-            "presenterClassName": "TableEditor"
-        },
-        {
-            "name": "list-item",
-            "type": "components",
-            "presenterClassName": "ListItem"
-        },
-        {
-            "name": "documents-page",
-            "type": "components",
-            "presenterClassName": "DocumentsPage"
-        },
-        {
-            "name": "document-item",
-            "type": "components",
-            "presenterClassName": "DocumentItem"
-        },
-        {
-            "name": "application-document-item",
-            "type": "components",
-            "presenterClassName": "ApplicationDocumentItem"
-        },
-        {
-            "name": "paragraph-html-preview",
-            "type": "components",
-            "presenterClassName": "ParagraphHtmlPreview"
-        },
-        {
-            "name": "add-comment",
-            "type": "modals",
-            "presenterClassName": "AddComment"
-        },
-        {
-            "name": "add-document-modal",
-            "type": "modals",
-            "presenterClassName": "AddDocumentModal"
-        },
-        {
-            "name": "add-variable",
-            "type": "modals",
-            "presenterClassName": "AddVariable"
-        },
-        {
-            "name": "edit-variable-value",
-            "type": "modals",
-            "presenterClassName": "EditVariableValue"
-        },
-        {
-            "name": "document-variable-details",
-            "type": "modals",
-            "presenterClassName": "DocumentVariableDetails"
-        },
-        {
-            "name": "document-snapshots-modal",
-            "type": "modals",
-            "presenterClassName": "DocumentSnapshotsModal"
-        },
-        {
-            "name": "confirm-action-modal",
-            "type": "modals",
-            "presenterClassName": "ConfirmActionModal"
-        },
-        {
-            "name": "document-tasks-modal",
-            "type": "modals",
-            "presenterClassName": "DocumentTasksModal"
-        },
-        {
-            "name": "show-error-modal",
-            "type": "modals",
-            "presenterClassName": "ShowErrorModal"
-        },
-        {
-            "name": "export-document-modal",
-            "type": "modals",
-            "presenterClassName": "ExportDocumentModal"
-        },
-        {
-            "name": "print-document-modal",
-            "type": "modals",
-            "presenterClassName": "PrintDocumentModal"
-        },
-        {
-            "name": "run-script",
-            "type": "modals",
-            "presenterClassName": "RunScript"
-        },
-        {
-            "name": "add-reference",
-            "type": "modals",
-            "presenterClassName": "AddReference"
-        },
-        {
-            "name": "insert-attachment-modal",
-            "type": "modals",
-            "presenterClassName": "InsertAttachmentModal"
-        },
-        {
-            "name": "insert-image-modal",
-            "type": "modals",
-            "presenterClassName": "InsertImageModal"
-        },
-        {
-            "name": "variable-values-tab",
-            "type": "modals",
-            "presenterClassName": "VariableValuesTab"
-        },
-        {
-            "name": "edit-variable-tab",
-            "type": "modals",
-            "presenterClassName": "EditVariableTab"
-        },
-        {
-            "name": "document-video-preview",
-            "type": "components",
-            "presenterClassName": "DocumentVideoPreview"
-        },
-        {
-            "name": "paragraph-video-preview",
-            "type": "components",
-            "presenterClassName": "ParagraphVideoPreview"
-        },
-        {
-            "name": "audio-creator",
-            "type": "components",
-            "presenterClassName": "AudioCreator"
-        },
-        {
-            "name": "video-creator",
-            "type": "components",
-            "presenterClassName": "VideoCreator"
-        },
-        {
-            "name": "image-creator",
-            "type": "components",
-            "presenterClassName": "ImageCreator"
-        },
-        {
-            "name": "audio-plugin",
-            "type": "modals",
-            "presenterClassName": "AudioPlugin"
-        },
-        {
-            "name": "image-plugin",
-            "type": "modals",
-            "presenterClassName": "ImagePlugin"
-        },
-        {
-            "name": "video-plugin",
-            "type": "modals",
-            "presenterClassName": "VideoPlugin"
-        },
-        {
-            "name": "simple-state-icon",
-            "type": "components",
-            "presenterClassName": "SimpleStateIcon"
-        },
-        {
-            "name": "effect-item",
-            "type": "components",
-            "presenterClassName": "EffectItem"
-        },
-        {
-            "name": "edit-effect-modal",
-            "type": "modals",
-            "presenterClassName": "EditEffectModal"
-        }
-    ],
-    "services": []
+  "rootDir": "/explorer/web-components",
+  "components": [
+    {
+      "name": "file-exp",
+      "type": "pages",
+      "presenterClassName": "FileExp"
+    },
+    {
+      "name": "file-editor",
+      "type": "components",
+      "presenterClassName": "FileEditor"
+    },
+    {
+      "name": "document-view-page",
+      "type": "components",
+      "presenterClassName": "DocumentViewPage"
+    },
+    {
+      "name": "chapter-item",
+      "type": "components",
+      "presenterClassName": "ChapterItem"
+    },
+    {
+      "name": "paragraph-item",
+      "type": "components",
+      "presenterClassName": "ParagraphItem"
+    },
+    {
+      "name": "contents-table",
+      "type": "components",
+      "presenterClassName": "ContentsTable"
+    },
+    {
+      "name": "comments-section",
+      "type": "components",
+      "presenterClassName": "CommentsSection"
+    },
+    {
+      "name": "references-table",
+      "type": "components",
+      "presenterClassName": "ReferencesTable"
+    },
+    {
+      "name": "custom-select",
+      "type": "components",
+      "presenterClassName": "CustomSelect"
+    },
+    {
+      "name": "edit-variables",
+      "type": "components",
+      "presenterClassName": "EditVariables"
+    },
+    {
+      "name": "files-menu",
+      "type": "components",
+      "presenterClassName": "FilesMenu"
+    },
+    {
+      "name": "task-item",
+      "type": "components",
+      "presenterClassName": "TaskItem"
+    },
+    {
+      "name": "table-editor",
+      "type": "components",
+      "presenterClassName": "TableEditor"
+    },
+    {
+      "name": "list-item",
+      "type": "components",
+      "presenterClassName": "ListItem"
+    },
+    {
+      "name": "documents-page",
+      "type": "components",
+      "presenterClassName": "DocumentsPage"
+    },
+    {
+      "name": "document-item",
+      "type": "components",
+      "presenterClassName": "DocumentItem"
+    },
+    {
+      "name": "application-document-item",
+      "type": "components",
+      "presenterClassName": "ApplicationDocumentItem"
+    },
+    {
+      "name": "paragraph-html-preview",
+      "type": "components",
+      "presenterClassName": "ParagraphHtmlPreview"
+    },
+    {
+      "name": "add-comment",
+      "type": "modals",
+      "presenterClassName": "AddComment"
+    },
+    {
+      "name": "add-document-modal",
+      "type": "modals",
+      "presenterClassName": "AddDocumentModal"
+    },
+    {
+      "name": "add-variable",
+      "type": "modals",
+      "presenterClassName": "AddVariable"
+    },
+    {
+      "name": "edit-variable-value",
+      "type": "modals",
+      "presenterClassName": "EditVariableValue"
+    },
+    {
+      "name": "document-variable-details",
+      "type": "modals",
+      "presenterClassName": "DocumentVariableDetails"
+    },
+    {
+      "name": "document-snapshots-modal",
+      "type": "modals",
+      "presenterClassName": "DocumentSnapshotsModal"
+    },
+    {
+      "name": "confirm-action-modal",
+      "type": "modals",
+      "presenterClassName": "ConfirmActionModal"
+    },
+    {
+      "name": "document-tasks-modal",
+      "type": "modals",
+      "presenterClassName": "DocumentTasksModal"
+    },
+    {
+      "name": "show-error-modal",
+      "type": "modals",
+      "presenterClassName": "ShowErrorModal"
+    },
+    {
+      "name": "export-document-modal",
+      "type": "modals",
+      "presenterClassName": "ExportDocumentModal"
+    },
+    {
+      "name": "print-document-modal",
+      "type": "modals",
+      "presenterClassName": "PrintDocumentModal"
+    },
+    {
+      "name": "run-script",
+      "type": "modals",
+      "presenterClassName": "RunScript"
+    },
+    {
+      "name": "add-reference",
+      "type": "modals",
+      "presenterClassName": "AddReference"
+    },
+    {
+      "name": "insert-attachment-modal",
+      "type": "modals",
+      "presenterClassName": "InsertAttachmentModal"
+    },
+    {
+      "name": "insert-image-modal",
+      "type": "modals",
+      "presenterClassName": "InsertImageModal"
+    },
+    {
+      "name": "variable-values-tab",
+      "type": "modals",
+      "presenterClassName": "VariableValuesTab"
+    },
+    {
+      "name": "edit-variable-tab",
+      "type": "modals",
+      "presenterClassName": "EditVariableTab"
+    },
+    {
+      "name": "document-video-preview",
+      "type": "components",
+      "presenterClassName": "DocumentVideoPreview"
+    },
+    {
+      "name": "paragraph-video-preview",
+      "type": "components",
+      "presenterClassName": "ParagraphVideoPreview"
+    },
+    {
+      "name": "audio-creator",
+      "type": "components",
+      "presenterClassName": "AudioCreator"
+    },
+    {
+      "name": "video-creator",
+      "type": "components",
+      "presenterClassName": "VideoCreator"
+    },
+    {
+      "name": "image-creator",
+      "type": "components",
+      "presenterClassName": "ImageCreator"
+    },
+    {
+      "name": "audio-plugin",
+      "type": "modals",
+      "presenterClassName": "AudioPlugin"
+    },
+    {
+      "name": "image-plugin",
+      "type": "modals",
+      "presenterClassName": "ImagePlugin"
+    },
+    {
+      "name": "video-plugin",
+      "type": "modals",
+      "presenterClassName": "VideoPlugin"
+    },
+    {
+      "name": "ffmpeg-image-to-video",
+      "type": "modals",
+      "presenterClassName": "FFMpegImageToVideo"
+    },
+    {
+      "name": "simple-state-icon",
+      "type": "components",
+      "presenterClassName": "SimpleStateIcon"
+    },
+    {
+      "name": "effect-item",
+      "type": "components",
+      "presenterClassName": "EffectItem"
+    },
+    {
+      "name": "edit-effect-modal",
+      "type": "modals",
+      "presenterClassName": "EditEffectModal"
+    }
+  ],
+  "services": []
 }

@@ -14,6 +14,7 @@ import {
     decodeValueDeep,
     decodeString,
     normalizeCommandString,
+    normalizeCommandQuotes,
     parseCommandsForUI,
     decodeBase64,
     encodeBase64,
@@ -121,12 +122,13 @@ const documentModule = {
         if (commands !== undefined) {
             document.commands = normalizeCommandString(commands, currentCommands);
         }
+        document.commands = normalizeCommandQuotes(document.commands);
         document.comments = createCommentDefaults(comments ?? document.comments);
         document.metadata = {
             ...document.metadata,
             title: document.title,
             infoText: document.infoText,
-            commands: document.commands,
+            commands: normalizeCommandQuotes(document.commands),
             comments: document.comments
         };
         await persistDocument(documentIdOrPath);
@@ -149,7 +151,7 @@ const documentModule = {
         const document = await getDocumentModel(documentIdOrPath);
         const chapterMetadata = createChapterMetadataDefaults({
             title: title ?? 'New Chapter',
-            commands: normalizeCommandString(commands ?? '', ''),
+            commands: normalizeCommandQuotes(normalizeCommandString(commands ?? '', '')),
             comments: comments ?? { messages: [] }
         });
         const chapter = hydrateChapterModel(createEmptyChapter({
@@ -253,10 +255,7 @@ const documentModule = {
             chapter.metadata.title = title;
         }
         const currentChapterCommands = normalizeCommandString(chapter.commands ?? '', '');
-        chapter.commands = currentChapterCommands;
-        if (commands !== undefined) {
-            chapter.commands = normalizeCommandString(commands, currentChapterCommands);
-        }
+        chapter.commands = normalizeCommandQuotes(commands !== undefined ? normalizeCommandString(commands, currentChapterCommands) : currentChapterCommands);
         chapter.metadata.commands = chapter.commands;
         if (comments) {
             chapter.comments = createCommentDefaults(comments);
@@ -445,10 +444,10 @@ const documentModule = {
         if (typeof text === 'string') {
             paragraphReference.text = text;
         }
-        const currentParagraphCommands = normalizeCommandString(paragraphReference.commands ?? '', '');
+        const currentParagraphCommands = normalizeCommandQuotes(normalizeCommandString(paragraphReference.commands ?? '', ''));
         paragraphReference.commands = currentParagraphCommands;
         if (commands !== undefined) {
-            paragraphReference.commands = normalizeCommandString(commands, currentParagraphCommands);
+            paragraphReference.commands = normalizeCommandQuotes(normalizeCommandString(commands, currentParagraphCommands));
         }
         paragraphReference.metadata.commands = paragraphReference.commands;
         if (comments) {
@@ -554,7 +553,7 @@ const documentModule = {
             throw new Error(`Chapter ${chapterId} not found.`);
         }
         const currentCommands = normalizeCommandString(chapter.commands ?? '', '');
-        chapter.commands = normalizeCommandString(commands, currentCommands);
+        chapter.commands = normalizeCommandQuotes(normalizeCommandString(commands, currentCommands));
         chapter.metadata.commands = chapter.commands;
         await persistDocument(documentIdOrPath);
         return chapter.commands;
@@ -562,7 +561,7 @@ const documentModule = {
     async updateParagraphCommands(chapterId, paragraphId, commands) {
         const paragraph = await this.getParagraph(null, paragraphId);
         const currentCommands = normalizeCommandString(paragraph.commands ?? '', '');
-        paragraph.commands = normalizeCommandString(commands, currentCommands);
+        paragraph.commands = normalizeCommandQuotes(normalizeCommandString(commands, currentCommands));
         paragraph.metadata.commands = paragraph.commands;
         for (const document of documentStore.documents.values()) {
             if (document.chapters.some((chapter) => chapter.id === chapterId)) {

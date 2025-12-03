@@ -1,46 +1,18 @@
 import { MEDIA_UPLOAD_ERROR_CODES, processMediaUpload, readVideoMetadata } from '../utils/mediaUpload.js';
+import { getContextualElement } from "../utils/pluginUtils.js";
 const documentModule = assistOS.loadModule("document");
-
-function getContext(element) {
-    const rawContext = element.getAttribute("data-context") || "{}";
-    try {
-        return JSON.parse(decodeURIComponent(rawContext));
-    } catch (error) {
-        console.error("Invalid chapter context", error);
-        return {};
-    }
-}
 
 export class VideoPlugin {
     constructor(element, invalidate) {
         this.element = element;
         this.invalidate = invalidate;
-        const context = getContext(this.element);
-        this.chapterId = context.chapterId || this.element.getAttribute("data-chapter-id");
-        this.paragraphId = context.paragraphId || this.element.getAttribute("data-paragraph-id");
-        this.hostSelector = context.hostSelector || "";
-        const documentViewPage = document.querySelector("document-view-page");
-        this.documentPresenter = documentViewPage?.webSkelPresenter ?? null;
-        if (!this.documentPresenter || !this.documentPresenter._document) {
-            throw new Error("Document context is required for video plugin.");
-        }
-        this._document = this.documentPresenter._document;
-        this.chapter = this._document.chapters.find((chapter) => chapter.id === this.chapterId);
-        if (!this.chapter) {
-            throw new Error(`Chapter ${this.chapterId} not found.`);
-        }
-        if (this.paragraphId) {
-            this.isParagraphContext = true;
-            this.paragraph = this.chapter.paragraphs?.find((paragraph) => paragraph.id === this.paragraphId) || null;
-            if (!this.paragraph) {
-                throw new Error(`Paragraph ${this.paragraphId} not found.`);
-            }
-        } else {
-            this.isParagraphContext = false;
-        }
-        if (!Array.isArray(this.chapter.variables)) {
-            this.chapter.variables = [];
-        }
+
+        const { document, chapter, paragraph } = getContextualElement(element);
+        this._document = document;
+        this.chapter = chapter;
+        this.paragraph = paragraph;
+        this.isParagraphContext = !!this.paragraph;
+
         if (!this.isParagraphContext) {
             this.ensureBackgroundVideoHydrated();
         }
@@ -106,39 +78,16 @@ export class VideoPlugin {
     }
 
     async closeModal() {
-        const presenter = this.getHostPresenter();
-        if (presenter?.closePlugin) {
-            await presenter.closePlugin("", false);
-        } else {
-            this.resetPluginButtonState();
-        }
         assistOS.UI.closeModal(this.element);
-        this.requestChapterRerender();
-    }
-
-    resetPluginButtonState() {
-        const pluginIcon = this.getPluginIconElement();
-        if (pluginIcon) {
-            pluginIcon.classList.remove("chapter-highlight-plugin");
-        }
     }
 
     async populateExistingVideos() {
         await this.renderVideoList();
-        this.refreshChapterPreviewIcons();
     }
 
     getVideoAttachments() {
-        if (this.isParagraphContext) {
-            if (Array.isArray(this.paragraph?.mediaAttachments?.video) && this.paragraph.mediaAttachments.video.length) {
-                return this.paragraph.mediaAttachments.video;
-            }
-            return [];
-        }
-        if (Array.isArray(this.chapter.mediaAttachments?.video) && this.chapter.mediaAttachments.video.length) {
-            return this.chapter.mediaAttachments.video;
-        }
-        return this.chapter.backgroundVideo ? [this.chapter.backgroundVideo] : [];
+        const host = this.paragraph || this.chapter;
+        return host?.mediaAttachments?.video || [];
     }
 
     async renderVideoList() {
@@ -169,7 +118,7 @@ export class VideoPlugin {
         const endValue = Number.isFinite(item.end) ? item.end : (Number.isFinite(item.duration) ? item.duration : 0);
         const url = sanitize(item.url || item.path || '');
         const durationLabel = Number.isFinite(item.duration) ? `${item.duration.toFixed(2)}s` : '';
-        const identifier = typeof item.identifier === 'string' ? item.identifier : '';
+        const identifier = item.name;
         const identifierAttr = escapeAttr(identifier);
         const saveAction = identifier ? `saveVideoItem ${identifier}` : 'saveVideoItem';
         const deleteAction = identifier ? `deleteVideoItem ${identifier}` : 'deleteVideoItem';
@@ -217,7 +166,7 @@ export class VideoPlugin {
             return;
         }
         const attachments = this.getVideoAttachments();
-        const current = attachments.find((attachment) => attachment.identifier === targetIdentifier);
+        const current = attachments.find((attachment) => attachment.name === targetIdentifier);
         if (!current) {
             return;
         }
@@ -226,10 +175,7 @@ export class VideoPlugin {
         const endInput = container.querySelector('[data-field="end"]');
         const loopInput = container.querySelector('[data-field="loop"]');
         const payload = {
-            identifier: targetIdentifier,
-            id: current.id,
-            path: current.url || current.path || '',
-            name: current.name || current.filename,
+            ...current,
             volume: Number.parseFloat(volumeInput?.value ?? '100'),
             start: Number.parseFloat(startInput?.value ?? '0'),
             end: Number.parseFloat(endInput?.value ?? '0'),
@@ -238,7 +184,6 @@ export class VideoPlugin {
         try {
             await this.persistVideoAttachment(payload);
             await this.invalidateCompiledVideo();
-            this.refreshChapterPreviewIcons();
             this.updateVideoAttachmentModel(current, payload);
             const nextState = {
                 volume: payload.volume,
@@ -328,10 +273,7 @@ export class VideoPlugin {
         if (!target) {
             return;
         }
-        target.volume = payload.volume;
-        target.start = payload.start;
-        target.end = payload.end;
-        target.loop = payload.loop;
+        Object.assign(target, payload);
     }
 
     async deleteVideoItem(triggerElement, identifier) {
@@ -391,36 +333,5 @@ export class VideoPlugin {
             delete this.chapter.commands.compileVideo;
             await documentModule.updateChapterCommands(this._document.id, this.chapter.id, this.chapter.commands);
         }
-    }
-
-    getPluginIconElement() {
-        const hostElement = this.getHostElement();
-        if (!hostElement) {
-            return null;
-        }
-        return hostElement.querySelector(`.icon-container.${this.element.tagName.toLowerCase()}`);
-    }
-
-    getHostPresenter() {
-        const hostElement = this.getHostElement();
-        return hostElement?.webSkelPresenter || null;
-    }
-
-    refreshChapterPreviewIcons() {
-        const presenter = this.getHostPresenter();
-        presenter?.renderInfoIcons?.();
-    }
-
-    requestChapterRerender() {
-        const presenter = this.getHostPresenter();
-        if (presenter?.invalidate) {
-            presenter.invalidate();
-        } else if (this.documentPresenter?.invalidate) {
-            this.documentPresenter.invalidate();
-        }
-    }
-
-    getHostElement() {
-        return this.hostSelector ? document.querySelector(this.hostSelector) : null;
     }
 }
