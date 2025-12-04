@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Build Workspace - Explorer Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Explorer Agent</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="plugins.html">Plugins</a></li>
+                        <li><a href="mcp-tools.html">MCP Tools</a></li>
+                        <li><a href="build.html" class="active">Build</a></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="development.html">Development</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="doc-layout">
+            <aside class="sidebar">
+                <h3>Build Workflow</h3>
+                <ul>
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#build-from-markdown">Building from Markdown</a></li>
+                    <li><a href="#soplang-agent-interaction">SOPLang Agent Interaction</a></li>
+                </ul>
+            </aside>
+            <div class="content-wrapper">
+                <div class="doc-section" id="overview">
+                    <h1>Building the Workspace</h1>
+                    <p>The Achilles IDE workspace can be built to process and synchronize content from various sources, especially Markdown documents, into the IDE's internal document store. This process ensures that your structured documentation, including embedded SOPLang commands and metadata, is correctly represented and actionable within the IDE.</p>
+                </div>
+
+                <div class="doc-section" id="build-from-markdown">
+                    <h2>Building from Markdown</h2>
+                    <p>The core of the build process for documents originates from Markdown files. The <code>SoplangBuilder</code> plugin, specifically its <code>buildFromMarkdown</code> method, is responsible for this operation.</p>
+                    
+                    <h3>Workflow Steps:</h3>
+                    <ol>
+                        <li>
+                            <strong>Workspace Root Detection:</strong> The <code>pickRoot()</code> function identifies the root directory of the current workspace, checking environment variables and common parent directories.
+                        </li>
+                        <li>
+                            <strong>Markdown File Discovery:</strong> The <code>walkMarkdown(root)</code> function recursively traverses the detected workspace root to find all <code>.md</code> files. It intelligently skips common development and build directories (e.g., <code>node_modules</code>, <code>.git</code>, <code>.ploinky</code>, <code>dist</code>) to focus on relevant content.
+                        </li>
+                        <li>
+                            <strong>Structured Document Parsing:</strong> For each discovered Markdown file, <code>parseDocsFromMarkdown(content, filePath)</code> extracts structured metadata. This function looks for special HTML-like comments embedded directly within the Markdown content. These comments define the document's structure, including documents, chapters, and paragraphs, along with their associated metadata and SOPLang commands.
+                            <h4>Example Markdown Comments:</h4>
+                            <pre><code>&lt;!--{"achiles-ide-document": {"id": "my-document", "title": "My Awesome Document", "commands": "doc-level-command"}}--&gt;
+# My Document Title
+
+&lt;!--{"achiles-ide-chapter": {"title": "Introduction", "commands": "chapter-level-command"}}--&gt;
+## Introduction
+
+This is an introductory paragraph.
+
+&lt;!--{"achiles-ide-paragraph": {"text": "This is a special paragraph.", "commands": "@media_image_123 attach id \"some-blob-id\" name \"my-image.png\""}}--&gt;
+This paragraph might have embedded commands.
+</code></pre>
+                        </li>
+                        <li>
+                            <strong>Document Store Synchronization:</strong> The extracted document structures are then used to create or update entries in the IDE's internal document store. This involves interacting with the <code>Documents</code> SOPLang plugin to ensure data consistency.
+                        </li>
+                        <li>
+                            <strong>Finalization:</strong> After processing all Markdown files, <code>workspace.forceSave()</code> persists any changes, and <code>workspace.buildAll()</code> triggers a comprehensive build of the entire workspace, integrating all updates.
+                        </li>
+                    </ol>
+                </div>
+
+                <div class="doc-section" id="soplang-agent-interaction">
+                    <h2>SOPLang Agent Interaction</h2>
+                    <p>The <code>buildFromMarkdown</code> function is typically invoked through the SOPLang Agent via the <code>soplang-tool.sh</code> script. This interaction model allows the IDE to leverage SOPLang's powerful scripting capabilities for complex build and automation tasks.</p>
+                    <p>You can execute this build process by sending an MCP request to the SOPLang Agent, specifying the <code>SoplangBuilder</code> plugin and the <code>buildFromMarkdown</code> method, potentially through a CLI command or an IDE action.</p>
+                    <pre><code># Example conceptual command to trigger the build
+# (Actual invocation might be abstracted by the IDE UI)
+ploinky soplang-tool --plugin SoplangBuilder --method buildFromMarkdown</code></pre>
+                    <p>The output of the build process, including any warnings or errors, will be returned, allowing you to monitor the workspace synchronization.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Ploinky Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themes = ['light', 'dark', 'blue'];
+        const themeIcons = {
+            light: '🌙', // Icon to show for switching to dark
+            dark: '🔵',  // Icon to show for switching to blue
+            blue: '☀️'   // Icon to show for switching to light
+        };
+
+        const applyTheme = (theme) => {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.textContent = themeIcons[theme];
+        };
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const currentIndex = themes.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            const newTheme = themes[nextIndex];
+            applyTheme(newTheme);
+        });
+
+        // Highlight active section in sidebar
+        const sections = document.querySelectorAll('.doc-section[id]');
+        const navLinks = document.querySelectorAll('.sidebar a');
+        
+        window.addEventListener('scroll', () => {
+            let current = '';
+            sections.forEach(section => {
+                const rect = section.getBoundingClientRect();
+                if (rect.top <= 100) {
+                    current = section.getAttribute('id');
+                }
+            });
+            
+            navLinks.forEach(link => {
+                link.classList.remove('active');
+                if (link.getAttribute('href') === `#${current}`) {
+                    link.classList.add('active');
+                }
+            });
+        });
+    </script>
+</body>
+</html>

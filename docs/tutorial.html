@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugin Tutorial - Achilles IDE</title>
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <nav class="sidebar">
+        <h2>Achilles IDE</h2>
+        <ul>
+            <li><a href="index.html">Home</a></li>
+            <li><a href="architecture.html">Architecture</a></li>
+            <li><a href="plugins.html">Plugins</a></li>
+            <li><a href="tutorial.html" class="active">Plugin Tutorial</a></li>
+            <li><a href="soplang.html">SOPLang in Markdown</a></li>
+            <li><a href="features.html">Features & Screenshots</a></li>
+            <li><a href="build.html">Building the Workspace</a></li>
+        </ul>
+    </nav>
+    <main class="content">
+        <h1>Tutorial: Creating a UI Plugin</h1>
+        <p>This tutorial will guide you through creating a simple "Uppercase Paragraph" plugin. This plugin will add an icon to each paragraph, and when clicked, it will open a modal that allows the user to convert the paragraph's text to uppercase.</p>
+
+        <hr>
+
+        <h3>1. Create the Plugin Folder</h3>
+        <p>In one of your enabled repositories, find or create an <code>IDE-plugins</code> directory. Inside it, create a new folder for your plugin.</p>
+        <pre><code>IDE-plugins/
+  └── uppercase/
+</code></pre>
+
+        <hr>
+
+        <h3>2. Create the <code>config.json</code> Manifest</h3>
+        <p>This file defines your plugin's properties.</p>
+        <pre><code>{
+  "component": "uppercase-plugin",
+  "presenter": "UppercasePlugin",
+  "type": "modal",
+  "location": ["paragraph"],
+  "tooltip": "Uppercase paragraph",
+  "icon": "./icon.svg"
+}
+</code></pre>
+
+        <hr>
+
+        <h3>3. Create the HTML Template (<code>uppercase-plugin.html</code>)</h3>
+        <p>This is the UI for your modal. WebSkel allows you to use template literals like <code>${this.paragraph.text}</code> to bind data from your presenter.</p>
+        <pre><code>&lt;div class="modal-header"&gt;
+  &lt;div&gt;Uppercase Paragraph&lt;/div&gt;
+  &lt;div class="close" data-local-action="closeModal"&gt;&times;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="modal-body"&gt;
+  &lt;p&gt;This will convert the paragraph with text: "&lt;strong&gt;${this.paragraph.text}&lt;/strong&gt;" to uppercase.&lt;/p&gt;
+  &lt;button class="general-button" data-local-action="apply"&gt;Apply&lt;/button&gt;
+&lt;/div&gt;
+</code></pre>
+
+        <hr>
+
+        <h3>4. Create the Presenter (<code>uppercase-plugin.js</code>)</h3>
+        <p>This is where the logic lives. Note the use of the WebSkel lifecycle methods: <code>constructor</code>, <code>beforeRender</code>, and <code>afterRender</code>.</p>
+        <pre><code>import { getContextualElement } from "../utils/pluginUtils.js";
+const documentModule = assistOS.loadModule("document");
+
+export class UppercasePlugin {
+  constructor(element, invalidate) {
+    this.element = element;
+    this.invalidate = invalidate;
+    // The invalidate call is crucial for the component to render.
+    this.invalidate();
+  }
+
+  beforeRender() {
+    // Called before the HTML is rendered. Use this to prepare data.
+    const { chapter, paragraph } = getContextualElement(this.element);
+    this.chapter = chapter;
+    this.paragraph = paragraph;
+  }
+
+  afterRender() {
+    // Called after the HTML is in the DOM. Use this to add event listeners.
+    const button = this.element.querySelector('[data-local-action="apply"]');
+    button.addEventListener("click", this.apply.bind(this));
+  }
+
+  async apply() {
+    const text = this.paragraph?.text || "";
+    await documentModule.updateParagraphText(this.chapter.id, this.paragraph.id, text.toUpperCase());
+    assistOS.UI.showToast("Paragraph updated successfully!", "success");
+    this.closeModal();
+  }
+
+  closeModal() {
+    assistOS.UI.closeModal(this.element);
+  }
+}
+</code></pre>
+
+        <hr>
+
+        <h3>5. Add an Icon and Restart</h3>
+        <p>Create a small SVG file named <code>icon.svg</code> in your plugin's directory. After that, you must **restart the Explorer agent** for it to discover your new plugin. Once restarted, you should see your icon appear on each paragraph in any <code>.md</code> file.</p>
+    </main>
+</body>
+</html>

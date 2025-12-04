@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Architecture - Explorer Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Explorer Agent</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html" class="active">Architecture</a></li>
+                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="plugins.html">Plugins</a></li>
+                        <li><a href="mcp-tools.html">MCP Tools</a></li>
+                        <li><a href="build.html">Build</a></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="development.html">Development</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="doc-layout">
+            <aside class="sidebar">
+                <h3>Architecture</h3>
+                <ul>
+                    <li><a href="#runtime">Runtime & Routing</a></li>
+                    <li><a href="#backend">Backend</a></li>
+                    <li><a href="#frontend">Frontend</a></li>
+                </ul>
+            </aside>
+            <div class="content-wrapper">
+                <div class="doc-section" id="runtime">
+                    <h1>Architecture</h1>
+                    <p>This section provides a detailed look at the technical architecture of the Explorer agent, from the containerized runtime to the frontend application.</p>
+
+                    <h2>Runtime and Routing</h2>
+                    <p>The Explorer agent's container configuration is defined in <code>manifest.json</code>. This file specifies how the container runs, including mounting the workspace and the agent library. The main Ploinky router (configured in <code>.ploinky/routing.json</code>) maps the <code>explorer</code> agent to a specific port on the host machine (e.g., 8082). The UI is accessed through this port.</p>
+                </div>
+
+                <div class="doc-section" id="backend">
+                    <h2>Backend (<code>filesystem-http-server.mjs</code>)</h2>
+                    <p>The backend is a Node.js server that leverages the <code>@modelcontextprotocol/server-filesystem</code> library for its core filesystem logic. It has several key responsibilities:</p>
+                    <ul>
+                        <li><strong>Static File Server:</strong> Serves all static assets for the frontend application (HTML, JS, CSS) and discovered plugins.</li>
+                        <li><strong>MCP Tool Provider:</strong> Exposes a suite of MCP tools for secure filesystem operations. This is the primary interface for other agents to interact with the workspace.</li>
+                        <li><strong>Security Layer:</strong> Enforces a strict path-whitelisting policy defined by <code>allowedDirectories</code>. This prevents unauthorized file access and path traversal attacks by validating all incoming requests. The <code>resolvePathsInArgs</code> function is a key part of this security model.</li>
+                        <li><strong>Plugin Discovery:</strong> On startup, the server's <code>aggregateIdePlugins</code> function recursively scans all enabled repositories for <code>IDE-plugins/*/config.json</code> manifests. It aggregates these configurations into a single plugin catalog that is then sent to the frontend.</li>
+                        <li><strong>Blob Storage:</strong> Manages file uploads via a <code>/blobs/:agentId</code> endpoint. It uses a content-addressable storage system, saving files by their hash to avoid duplication.</li>
+                    </ul>
+                </div>
+
+                <div class="doc-section" id="frontend">
+                    <h2>Frontend (WebSkel SPA)</h2>
+                    <p>The frontend is a Single-Page Application (SPA) located in the <code>explorer/</code> directory, built using <strong>WebSkel</strong>, a lightweight, component-based framework for building reactive web applications.</p>
+                    
+                    <p>The Explorer's user interface is beautifully structured around a clear separation of concerns, typically comprising two main areas:</p>
+                    <ol>
+                        <li>
+                            <strong>Navigation Area:</strong> This section allows users to browse and select files, documents, or other resources. Components like <code>files-menu</code> (which can be inferred from the overall structure and common IDE patterns) would typically reside here, providing a hierarchical view of the workspace.
+                        </li>
+                        <li>
+                            <strong>Content/Editor Area:</strong> This is the primary interactive space where users view, edit, or preview selected content. Depending on the file type, this area dynamically loads components such as:
+                            <ul>
+                                <li><code>document-view-page</code>: For rendering and interacting with structured Markdown documents.</li>
+                                <li><code>file-editor</code>: A versatile text editor for viewing and modifying plain text files, code files (e.g., JavaScript, HTML, CSS), and configuration files.</li>
+                            </ul>
+                        </li>
+                    </ol>
+
+                    <p>The application's overall component structure is defined in <code>webskel.json</code>, which lists all components, pages, and modals. Here are some of the key components mentioned:</p>
+                    <table class="command-table">
+                        <thead>
+                            <tr>
+                                <th>Component</th>
+                                <th>Description</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            <tr>
+                                <td><code>file-exp</code></td>
+                                <td>The main page orchestrating the file explorer view.</td>
+                            </tr>
+                            <tr>
+                                <td><code>document-view-page</code></td>
+                                <td>Renders a full document with its chapters and paragraphs.</td>
+                            </tr>
+                             <tr>
+                                <td><code>chapter-item</code> / <code>paragraph-item</code></td>
+                                <td>Represents a single chapter or paragraph within a document.</td>
+                            </tr>
+                            <tr>
+                                <td><code>file-editor</code></td>
+                                <td>A general-purpose text editor for any file type.</td>
+                            </tr>
+                            <tr>
+                                <td><code>files-menu</code></td>
+                                <td>(Inferred) Component likely responsible for displaying a browsable list of files/directories.</td>
+                            </tr>
+                            <tr>
+                                <td><code>insert-image-modal</code></td>
+                                <td>A modal for uploading and inserting images into a document.</td>
+                            </tr>
+                        </tbody>
+                    </table>
+                    <p>Each component is driven by a JavaScript presenter class that manages its state and lifecycle. Presenters use an <code>invalidate()</code> method to trigger re-renders, making the UI reactive to data changes.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Ploinky Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themes = ['light', 'dark', 'blue'];
+        const themeIcons = {
+            light: '🌙', // Icon to show for switching to dark
+            dark: '🔵',  // Icon to show for switching to blue
+            blue: '☀️'   // Icon to show for switching to light
+        };
+
+        const applyTheme = (theme) => {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.textContent = themeIcons[theme];
+        };
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const currentIndex = themes.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            const newTheme = themes[nextIndex];
+            applyTheme(newTheme);
+        });
+    </script>
+</body>
+</html>

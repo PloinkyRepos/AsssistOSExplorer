@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Screenshots - Explorer Agent</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        .screenshot-gallery {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+        }
+        .screenshot-card {
+            background-color: var(--bg-primary);
+            border-radius: 12px;
+            box-shadow: var(--shadow-md);
+            overflow: hidden;
+            border: 1px solid var(--border-primary);
+            transition: transform 0.3s ease;
+        }
+        .screenshot-card h3 {
+            padding: 1rem;
+            margin: 0;
+            color: var(--text-primary);
+            font-size: 1.2rem;
+            border-bottom: 1px solid var(--border-primary);
+        }
+        .screenshot-card p {
+            padding: 0 1rem 1rem;
+            color: var(--text-secondary);
+            font-size: 0.9rem;
+        }
+        .thumbnail-list {
+            display: grid;
+            grid-auto-flow: column; /* Arrange items in columns, allowing them to overflow horizontally */
+            grid-auto-columns: min-content; /* Each column takes minimum content width */
+            gap: 0.5rem;
+            overflow-x: auto; /* Enable horizontal scrolling */
+            padding: 1rem;
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-primary);
+            -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
+            scrollbar-width: thin; /* Firefox */
+            scrollbar-color: var(--text-secondary) var(--bg-secondary); /* Firefox */
+        }
+        /* Custom scrollbar for Webkit browsers */
+        .thumbnail-list::-webkit-scrollbar {
+            height: 8px;
+        }
+        .thumbnail-list::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+        .thumbnail-list::-webkit-scrollbar-thumb {
+            background-color: var(--text-secondary);
+            border-radius: 4px;
+            border: 2px solid var(--bg-secondary);
+        }
+        .thumbnail {
+            width: 130px;
+            height: 130px;
+            object-fit: cover;
+            border-radius: 4px;
+            cursor: pointer;
+            border: 2px solid var(--border-secondary);
+            transition: transform 0.2s ease, border-color 0.2s ease;
+        }
+        .thumbnail:hover {
+            transform: scale(1.1);
+            border-color: var(--text-link);
+        }
+
+        /* Lightbox styles */
+        .lightbox-overlay {
+            display: none; /* Hidden by default */
+            position: fixed; /* Stay in place */
+            z-index: 1000; /* Sit on top */
+            left: 0;
+            top: 0;
+            width: 100%; /* Full width */
+            height: 100%; /* Full height */
+            overflow: auto; /* Enable scroll if needed */
+            background-color: rgba(0,0,0,0.8); /* Black w/ opacity */
+            justify-content: center;
+            align-items: center;
+        }
+        .lightbox-content {
+            margin: auto;
+            display: block;
+            max-width: 90%;
+            max-height: 90%;
+            border-radius: 8px;
+            box-shadow: var(--shadow-lg);
+        }
+        .lightbox-caption {
+            margin: 15px auto;
+            display: block;
+            width: 80%;
+            max-width: 700px;
+            text-align: center;
+            color: #ccc;
+            padding: 10px 0;
+            font-size: 1.2rem;
+        }
+        .lightbox-close {
+            position: absolute;
+            top: 15px;
+            right: 35px;
+            color: #f1f1f1;
+            font-size: 40px;
+            font-weight: bold;
+            transition: 0.3s;
+            cursor: pointer;
+        }
+        .lightbox-close:hover,
+        .lightbox-close:focus {
+            color: #bbb;
+            text-decoration: none;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Explorer Agent</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="plugins.html">Plugins</a></li>
+                        <li><a href="mcp-tools.html">MCP Tools</a></li>
+                        <li><a href="build.html">Build</a></li>
+                        <li><a href="screenshots.html" class="active">Screenshots</a></li>
+                        <li><a href="development.html">Development</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="doc-section">
+                <h1>Screenshots</h1>
+                <p>This page provides visual examples of the Explorer Agent's functionalities. The images below are placeholders and will be updated with actual screenshots of the Achilles IDE. Click on a thumbnail to view a larger version.</p>
+
+                <div class="screenshot-gallery">
+                    <div class="screenshot-card">
+                        <h3>Main Interface</h3>
+                        <p>An overview of the primary user interface, showing the document editor and navigation panels.</p>
+                        <div class="thumbnail-list">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Main+IDE+Window+(View+1)" alt="Main IDE Window - View 1">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=2" data-img-src="https://via.placeholder.com/1200x800?text=Main+IDE+Window+(View+2)" alt="Main IDE Window - View 2">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=3" data-img-src="https://via.placeholder.com/1200x800?text=Main+IDE+Window+(View+3)" alt="Main IDE Window - View 3">
+                        </div>
+                    </div>
+
+                    <div class="screenshot-card">
+                        <h3>Document Editing</h3>
+                        <p>Demonstrates the rich Markdown editing experience with embedded SOPLang commands.</p>
+                        <div class="thumbnail-list">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Markdown+Editor" alt="Markdown Editor">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=2" data-img-src="https://via.placeholder.com/1200x800?text=Embedded+SOPLang" alt="Embedded SOPLang">
+                        </div>
+                    </div>
+
+                    <div class="screenshot-card">
+                        <h3>Plugin Integration</h3>
+                        <p>Shows how context-aware plugins are integrated into the UI and interact with documents.</p>
+                         <div class="thumbnail-list">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Plugin+Toolbar" alt="Plugin Toolbar">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=2" data-img-src="https://via.placeholder.com/1200x800?text=Plugin+Modal" alt="Plugin Modal">
+                        </div>
+                    </div>
+
+                    <div class="screenshot-card">
+                        <h3>File System Navigation</h3>
+                        <p>Visualizes the secure file system navigation and management capabilities.</p>
+                         <div class="thumbnail-list">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=File+Tree" alt="File Tree">
+                        </div>
+                    </div>
+
+                    <div class="screenshot-card">
+                        <h3>SOPLang Execution</h3>
+                        <p>Illustrates the execution of SOPLang scripts and the display of their results.</p>
+                         <div class="thumbnail-list">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=SOPLang+Console" alt="SOPLang Console">
+                        </div>
+                    </div>
+
+                    <div class="screenshot-card">
+                        <h3>Blob Storage Management</h3>
+                        <p>Displays the interface for managing and previewing uploaded media via the blob service.</p>
+                         <div class="thumbnail-list">
+                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Media+Gallery" alt="Media Gallery">
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Ploinky Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <!-- The Lightbox Modal -->
+    <div id="myLightbox" class="lightbox-overlay">
+        <span class="lightbox-close">&times;</span>
+        <img class="lightbox-content" id="img01">
+        <div id="caption" class="lightbox-caption"></div>
+    </div>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themes = ['light', 'dark', 'blue'];
+        const themeIcons = {
+            light: '🌙', // Icon to show for switching to dark
+            dark: '🔵',  // Icon to show for switching to blue
+            blue: '☀️'   // Icon to show for switching to light
+        };
+
+        const applyTheme = (theme) => {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.textContent = themeIcons[theme];
+        };
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const currentIndex = themes.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            const newTheme = themes[nextIndex];
+            applyTheme(newTheme);
+        });
+
+        // Lightbox functionality
+        const lightbox = document.getElementById('myLightbox');
+        const lightboxImg = document.getElementById('img01');
+        const captionText = document.getElementById('caption');
+        const thumbnails = document.querySelectorAll('.thumbnail');
+        const closeBtn = document.querySelector('.lightbox-close');
+
+        thumbnails.forEach(thumb => {
+            thumb.addEventListener('click', function(event) {
+                event.stopPropagation(); // Prevent card click event if any
+                lightbox.style.display = 'flex';
+                lightboxImg.src = this.getAttribute('data-img-src');
+                captionText.innerHTML = this.getAttribute('alt');
+            });
+        });
+
+        closeBtn.addEventListener('click', function() {
+            lightbox.style.display = 'none';
+        });
+
+        lightbox.addEventListener('click', function(event) {
+            if (event.target === lightbox) {
+                lightbox.style.display = 'none';
+            }
+        });
+    </script>
+</body>
+</html>

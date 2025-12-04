@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Development - Explorer Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Explorer Agent</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="plugins.html">Plugins</a></li>
+                        <li><a href="mcp-tools.html">MCP Tools</a></li>
+                        <li><a href="build.html">Build</a></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="development.html" class="active">Development</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="doc-layout">
+            <aside class="sidebar">
+                <h3>Development</h3>
+                <ul>
+                    <li><a href="#tips">Development Tips</a></li>
+                    <li><a href="#cheatsheet">Repo Layout</a></li>
+                </ul>
+            </aside>
+            <div class="content-wrapper">
+                <div class="doc-section" id="tips">
+                    <h1>Development Tips</h1>
+                    <ul>
+                        <li><strong>Restart on Change:</strong> You must restart the Explorer agent after adding, removing, or modifying a plugin's <code>config.json</code> to force the server to rebuild its plugin catalog.</li>
+                        <li><strong>Use Blob IDs:</strong> Store blob IDs, not full URLs, in document commands or plugin state. URLs can change and should be constructed on-demand using helpers like <code>blobUrl.buildBlobUrl</code>.</li>
+                        <li><strong>Use the Document Module:</strong> When modifying document content from a plugin, always use the <code>assistOS.loadModule("document")</code> functions to ensure data consistency and proper UI updates.</li>
+                        <li><strong>Media Formats:</strong> For plugins involving media processing (e.g., with ffmpeg), prefer standard formats like PNG, JPG, MP4, and MP3. SVG is often not supported in these pipelines.</li>
+                    </ul>
+                </div>
+
+                <div class="doc-section" id="cheatsheet">
+                    <h2>Visual Cheatsheet (Repo Layout)</h2>
+                    <pre><code>.../fileExplorer/explorer/
+├─ filesystem-http-server.mjs   # Backend: MCP, Blob Service, Plugin Discovery
+├─ index.html / main.js         # SPA entry point
+├─ webskel.json                 # Defines the core UI components
+├─ web-components/              # Implementation of core UI components
+├─ IDE-plugins/                 # Location for plugins (discovered recursively)
+│   └─ &lt;plugin&gt;/config.json
+├─ services/                    # Frontend services, including document parsing
+└─ utils/                       # Shared utilities for the frontend
+</code></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Ploinky Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themes = ['light', 'dark', 'blue'];
+        const themeIcons = {
+            light: '🌙', // Icon to show for switching to dark
+            dark: '🔵',  // Icon to show for switching to blue
+            blue: '☀️'   // Icon to show for switching to light
+        };
+
+        const applyTheme = (theme) => {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.textContent = themeIcons[theme];
+        };
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const currentIndex = themes.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            const newTheme = themes[nextIndex];
+            applyTheme(newTheme);
+        });
+    </script>
+</body>
+</html>

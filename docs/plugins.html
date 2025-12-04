@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Plugins - Explorer Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Explorer Agent</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="plugins.html" class="active">Plugins</a></li>
+                        <li><a href="mcp-tools.html">MCP Tools</a></li>
+                        <li><a href="build.html">Build</a></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="development.html">Development</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="doc-layout">
+            <aside class="sidebar">
+                <h3>Plugins</h3>
+                <ul>
+                    <li><a href="#discovery">Discovery</a></li>
+                    <li><a href="#manifest">Manifest</a></li>
+                    <li><a href="#example">Example Plugin</a></li>
+                </ul>
+            </aside>
+            <div class="content-wrapper">
+                <div class="doc-section" id="discovery">
+                    <h1>The Plugin System</h1>
+                    <p>The <code>aggregateIdePlugins</code> function in <code>filesystem-http-server.mjs</code> is responsible for discovering plugins. At server startup, it scans all enabled repositories for <code>IDE-plugins/*/config.json</code> files. These manifests are then merged into a single plugin catalog, grouped by their specified <code>location</code>, and sent to the client.</p>
+                </div>
+
+                <div class="doc-section" id="manifest">
+                    <h2>Plugin Manifest (<code>config.json</code>)</h2>
+                    <p>The <code>config.json</code> file is the heart of a plugin. Here is an example from the <code>video-creator</code> plugin:</p>
+                    <pre><code>{
+  "component": "video-creator",
+  "presenter": "VideoCreator",
+  "type": "modal",
+  "location": [
+    "document"
+  ],
+  "tooltip": "Create a video from a script",
+  "icon": "./assets/icons/video.svg"
+}</code></pre>
+                    <p>This manifest tells the Explorer to load the <code>video-creator</code> component as a modal, make it available at the "document" level, and use the specified tooltip and icon.</p>
+                </div>
+
+                <div class="doc-section" id="example">
+                    <h2>Example: "Uppercase Paragraph" Plugin</h2>
+                    <p>This example demonstrates the correct structure of a WebSkel presenter, including the mandatory <code>beforeRender</code> and <code>afterRender</code> lifecycle methods.</p>
+                    
+                    <h3>1. Create Folder</h3>
+                    <p>Create a new folder for the plugin: <code>IDE-plugins/uppercase/</code></p>
+                    
+                    <h3>2. <code>config.json</code></h3>
+                    <pre><code>{
+  "component": "uppercase-plugin",
+  "presenter": "UppercasePlugin",
+  "type": "modal",
+  "location": ["paragraph"],
+  "tooltip": "Uppercase paragraph",
+  "icon": "./icon.svg"
+}</code></pre>
+
+                    <h3>3. <code>uppercase-plugin.html</code></h3>
+                    <pre><code>&lt;div class="modal-header"&gt;
+  &lt;div&gt;Uppercase Paragraph&lt;/div&gt;
+  &lt;div class="close" data-local-action="closeModal"&gt;&times;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="modal-body"&gt;
+  &lt;p&gt;This will convert the paragraph with text: "&lt;strong&gt;${this.paragraph.text}&lt;/strong&gt;" to uppercase.&lt;/p&gt;
+  &lt;button class="general-button" data-local-action="apply"&gt;Apply&lt;/button&gt;
+&lt;/div&gt;</code></pre>
+
+                    <h3>4. <code>uppercase-plugin.js</code></h3>
+                    <pre><code>import { getContextualElement } from "../utils/pluginUtils.js";
+const documentModule = assistOS.loadModule("document");
+
+export class UppercasePlugin {
+  constructor(element, invalidate) {
+    this.element = element;
+    this.invalidate = invalidate;
+    this.invalidate();
+  }
+
+  beforeRender() {
+    const { chapter, paragraph } = getContextualElement(this.element);
+    this.chapter = chapter;
+    this.paragraph = paragraph;
+  }
+
+  afterRender() {
+    const button = this.element.querySelector('[data-local-action="apply"]');
+    button.addEventListener("click", this.apply.bind(this));
+  }
+
+  async apply() {
+    const text = this.paragraph?.text || "";
+    await documentModule.updateParagraphText(this.chapter.id, this.paragraph.id, text.toUpperCase());
+    assistOS.UI.showToast("Paragraph updated successfully!", "success");
+    this.closeModal();
+  }
+
+  closeModal() {
+    assistOS.UI.closeModal(this.element);
+  }
+}</code></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Ploinky Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themes = ['light', 'dark', 'blue'];
+        const themeIcons = {
+            light: '🌙', // Icon to show for switching to dark
+            dark: '🔵',  // Icon to show for switching to blue
+            blue: '☀️'   // Icon to show for switching to light
+        };
+
+        const applyTheme = (theme) => {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.textContent = themeIcons[theme];
+        };
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const currentIndex = themes.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            const newTheme = themes[nextIndex];
+            applyTheme(newTheme);
+        });
+    </script>
+</body>
+</html>

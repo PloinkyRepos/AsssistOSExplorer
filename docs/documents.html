@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Document Management - Explorer Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Explorer Agent</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="documents.html" class="active">Documents</a></li>
+                        <li><a href="plugins.html">Plugins</a></li>
+                        <li><a href="mcp-tools.html">MCP Tools</a></li>
+                        <li><a href="build.html">Build</a></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="development.html">Development</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="doc-layout">
+            <aside class="sidebar">
+                <h3>Document Management</h3>
+                <ul>
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#data-model">Data Model</a></li>
+                    <li><a href="#persistence">Data Persistence</a></li>
+                    <li><a href="#doc-info">Document Info</a></li>
+                    <li><a href="#toc">Table of Contents</a></li>
+                    <li><a href="#comments">Comments</a></li>
+                    <li><a href="#references">References</a></li>
+                    <li><a href="#advanced-features">Advanced Features</a></li>
+                    <li><a href="#other-files">Editing Other Files</a></li>
+                </ul>
+            </aside>
+            <div class="content-wrapper">
+                <div class="doc-section" id="overview">
+                    <h1>Managing and Editing .md Documents</h1>
+                    <p>A core feature of the Explorer agent is its specialized handling of Markdown (<code>.md</code>) files. Instead of treating them as plain text, Explorer parses them into a structured <strong>Document Object Model</strong> (DOM), turning them into interactive, extensible documents with a rich set of features.</p>
+                </div>
+
+                <div class="doc-section" id="data-model">
+                    <h2>The Document Data Model</h2>
+                    <p>When a Markdown file is loaded, it is transformed into a rich, in-memory representation. This process, known as <strong>hydration</strong>, is handled by the <code>DocumentStore</code> service. The <code>hydrateDocumentModel</code> function enriches the document with metadata, comments, references, and other structured data, creating a hierarchical model that the UI components can interact with.</p>
+                </div>
+
+                <div class="doc-section" id="persistence">
+                    <h2>Data Persistence via Soplang Commands</h2>
+                    <p>A key architectural concept is that <strong><code>.md</code> files are a persistence layer for structured data.</strong> This is achieved by embedding <code>soplang</code> commands directly within the text, which are parsed during hydration and preserved during serialization.</p>
+                </div>
+                
+                <div class="doc-section" id="doc-info">
+                    <h2>Document Info</h2>
+                    <p>Each document contains a set of metadata that provides essential information about it. This includes the document's <strong>Title</strong> and a summary or abstract in the <strong>Info Text</strong> field. This data is managed within the document's metadata and can be edited through the UI to provide context for the document's content.</p>
+                </div>
+
+                <div class="doc-section" id="toc">
+                    <h2>Table of Contents</h2>
+                    <p>The Explorer automatically generates a navigable <strong>Table of Contents</strong> for each document. This is handled by the <code>contents-table</code> component, which reads the document's structure from the hydrated data model.</p>
+                    <ul>
+                        <li>The table is built from the <code>chapters</code> array within the document model.</li>
+                        <li>Each chapter's <code>headingText</code> and <code>headingLevel</code> are used to create a hierarchical and interactive outline.</li>
+                        <li>Clicking an item in the Table of Contents will scroll the corresponding chapter into view.</li>
+                    </ul>
+                </div>
+                
+                <div class="doc-section" id="comments">
+                    <h2>Comments</h2>
+                    <p>The IDE supports a commenting system that allows users to attach feedback to the document as a whole, or to specific chapters and paragraphs. The <code>comments-section</code> component is responsible for displaying and managing these comments.</p>
+                    <ul>
+                        <li>Comments are stored in the <code>comments</code> array within the metadata of the corresponding document, chapter, or paragraph.</li>
+                        <li>This feature enables collaborative review and discussion directly within the context of the document.</li>
+                    </ul>
+                </div>
+
+                <div class="doc-section" id="references">
+                    <h2>References</h2>
+                    <p>A built-in reference management system allows you to cite sources and manage bibliographic information. The <code>references-table</code> component provides the interface for this feature.</p>
+                     <ul>
+                        <li>References are stored in a <code>references</code> array within the document's metadata.</li>
+                        <li>This allows for centralized management of all sources cited within a document, making it ideal for research and technical papers.</li>
+                    </ul>
+                </div>
+                
+                <div class="doc-section" id="advanced-features">
+                    <h2>Advanced Features: Snapshots, Tasks, and Variables</h2>
+                    <p>The document model also supports several advanced features for automation and version control:</p>
+                    <ul>
+                        <li><strong>Snapshots & Versioning:</strong> The <code>version</code> and <code>snapshots</code> properties in the document model provide a simple version control system. The <code>document-snapshots-modal</code> component allows users to view and potentially revert to previous states of the document.</li>
+                        <li><strong>Tasks:</strong> The <code>tasks</code> property allows for the creation and management of to-do items or other tasks associated with a document, managed through the <code>document-tasks-modal</code>.</li>
+                        <li><strong>Variables:</strong> The <code>variables</code> property provides a way to define and manage dynamic data within a document, which can be used by SOPLang scripts and other automations. The <code>document-variable-details</code> component is used to interact with these variables.</li>
+                    </ul>
+                </div>
+
+                <div class="doc-section" id="other-files">
+                    <h2>Editing Other File Types (Text, Code, etc.)</h2>
+                    <p>In addition to its specialized Markdown editor, the Explorer Agent includes a general-purpose text editor for handling other file types. This allows you to view and edit a wide range of text-based files directly within the IDE.</p>
+                    
+                    <h3>Supported Files:</h3>
+                    <ul>
+                        <li>Plain text files (<code>.txt</code>)</li>
+                        <li>Code files (<code>.js</code>, <code>.html</code>, <code>.css</code>, <code>.py</code>, etc.)</li>
+                        <li>Configuration files (<code>.json</code>, <code>.xml</code>, <code>.yml</code>, etc.)</li>
+                    </ul>
+
+                    <h3>The Key Difference: Plain Text vs. Structured Data</h3>
+                    <p>The most important distinction is how these files are treated compared to Markdown (<code>.md</code>) files:</p>
+                    <ul>
+                        <li><strong>Plain Text Handling:</strong> When you open a <code>.js</code> or <code>.txt</code> file, it is treated as a single block of plain text. The editor does not parse it into a structured model of chapters and paragraphs.</li>
+                        <li><strong>No DOM or Plugin Context:</strong> Because these files are not parsed into a structured DOM, the context-aware features available for Markdown are not applicable. You cannot attach plugins to specific "paragraphs" or "chapters" of a code file, nor can you embed and execute SOPLang commands within them in the same way.</li>
+                        <li><strong>Underlying MCP Tools:</strong> All interactions with these files are handled by the fundamental filesystem MCP tools, such as <code>read_text_file</code> and <code>write_file</code>. This provides a raw, direct way to manage the content of any text-based file in your workspace.</li>
+                    </ul>
+
+                    <h3>Syntax Highlighting</h3>
+                    <p>While these files are treated as plain text from a structural point of view, the editor provides a crucial presentation-layer feature: <strong>syntax highlighting</strong>. When you open a code file (e.g., <code>.js</code>, <code>.html</code>, <code>.css</code>), the editor automatically detects the language and applies color coding to keywords, strings, comments, and other language constructs.</p>
+                    <p>This feature significantly improves readability and makes it easier to work with code, but it's important to remember that this is a client-side rendering enhancement. It does not change the fact that the underlying file is treated as a simple block of text, unlike the deep structural parsing applied to <code>.md</code> files.</p>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Ploinky Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themes = ['light', 'dark', 'blue'];
+        const themeIcons = {
+            light: '🌙', // Icon to show for switching to dark
+            dark: '🔵',  // Icon to show for switching to blue
+            blue: '☀️'   // Icon to show for switching to light
+        };
+
+        const applyTheme = (theme) => {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.textContent = themeIcons[theme];
+        };
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const currentIndex = themes.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            const newTheme = themes[nextIndex];
+            applyTheme(newTheme);
+        });
+    </script>
+</body>
+</html>

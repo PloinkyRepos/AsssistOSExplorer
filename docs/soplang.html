@@ -1,0 +1,91 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SOPLang - Ploinky Explorer</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Ploinky Explorer</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="plugins.html">Plugins</a></li>
+                        <li><a href="tutorial-ui-plugin.html">UI Plugin Tutorial</a></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="soplang.html" class="active">SOPLang</a></li>
+                        <li><a href="build.html">Build</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            <div class="doc-layout">
+                <aside class="sidebar">
+                    <h3>SOPLang</h3>
+                    <ul>
+                        <li><a href="#embedding">Embedding</a></li>
+                        <li><a href="#execution">Execution</a></li>
+                    </ul>
+                </aside>
+
+                <div class="content-wrapper">
+                    <div class="doc-section" id="embedding">
+                        <h1>SOPLang in Markdown</h1>
+                        <p>SOPLang (Standard Operating Procedure Language) can be embedded directly into Markdown files, allowing you to create rich, executable documentation.</p>
+                        <p>To embed a SOPLang script, you can use a fenced code block with the <code>soplang</code> language identifier:</p>
+                        <pre><code>```soplang
+# This is a SOPLang script
+agent "MyAgent" do
+  action "do_something"
+end
+```</code></pre>
+                    </div>
+
+                    <div class="doc-section" id="execution">
+                        <h2>Execution</h2>
+                        <p>When you open a Markdown file containing a SOPLang script in the Achilles IDE, you can execute it using the <code>@soplangAgent</code>.</p>
+                        <p>The agent will parse the script and execute the defined procedures. The output of the execution will be displayed in the IDE's output panel.</p>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Achilles Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        body.setAttribute('data-theme', savedTheme);
+        themeToggle.textContent = savedTheme === 'dark' ? '☀️' : '🌙';
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const newTheme = currentTheme === 'dark' ? 'light' : 'dark';
+            body.setAttribute('data-theme', newTheme);
+            localStorage.setItem('theme', newTheme);
+            themeToggle.textContent = newTheme === 'dark' ? '☀️' : '🌙';
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,162 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>MCP Tools - Explorer Agent</title>
+    <link rel="stylesheet" href="style.css">
+</head>
+<body>
+    <header>
+        <div class="container">
+            <div class="header-content">
+                <a href="index.html" class="logo">
+                    <div class="logo-icon">🚀</div>
+                    <span>Explorer Agent</span>
+                </a>
+                <nav>
+                    <ul>
+                        <li><a href="index.html">Home</a></li>
+                        <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="plugins.html">Plugins</a></li>
+                        <li><a href="mcp-tools.html" class="active">MCP Tools</a></li>
+                        <li><a href="build.html">Build</a></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="development.html">Development</a></li>
+                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                    </ul>
+                </nav>
+            </div>
+        </div>
+    </header>
+
+    <main>
+        <div class="doc-layout">
+            <aside class="sidebar">
+                <h3>MCP Tools</h3>
+                <ul>
+                    <li><a href="#overview">Overview</a></li>
+                    <li><a href="#security">Security</a></li>
+                    <li><a href="#tool-reference">Tool Reference</a></li>
+                </ul>
+            </aside>
+            <div class="content-wrapper">
+                <div class="doc-section" id="overview">
+                    <h1>MCP Tools Exposed by Explorer</h1>
+                    <p>The Explorer agent exposes a secure API for file manipulation via MCP tools. Other agents should use these tools instead of attempting direct filesystem access. The available tools are defined in <code>filesystem-http-server.mjs</code>.</p>
+                </div>
+                
+                <div class="doc-section" id="security">
+                    <h2>Security</h2>
+                    <p>All tools are sandboxed and enforce the <code>allowedDirectories</code> configuration, ensuring that operations are confined to the intended workspace. This prevents any unauthorized file access and protects against path traversal attacks. Any path arguments are resolved relative to the workspace root, and any attempts to access parent directories are blocked.</p>
+                </div>
+
+                <div class="doc-section" id="tool-reference">
+                    <h2>Tool Reference</h2>
+                    <p>Here is a detailed list of the MCP tools provided by the Explorer agent.</p>
+                    
+                    <h3>read_text_file</h3>
+                    <p>Reads the contents of a text file.</p>
+                    <pre><code>{
+  path: string,
+  tail?: number, // If provided, returns only the last N lines
+  head?: number  // If provided, returns only the first N lines
+}</code></pre>
+
+                    <h3>write_file</h3>
+                    <p>Creates or overwrites a file with new content.</p>
+                    <pre><code>{
+  path: string,
+  content: string
+}</code></pre>
+
+                    <h3>list_directory</h3>
+                    <p>Lists files and directories within a path.</p>
+                    <pre><code>{
+  path: string
+}</code></pre>
+                    
+                    <h3>list_directory_detailed</h3>
+                    <p>Lists directory contents with metadata as JSON.</p>
+                    <pre><code>{
+  path: string
+}</code></pre>
+
+                    <h3>create_directory</h3>
+                    <p>Ensures a directory exists by creating it recursively.</p>
+                    <pre><code>{
+  path: string
+}</code></pre>
+
+                    <h3>delete_file / delete_directory</h3>
+                    <p>Deletes a file or directory.</p>
+                    <pre><code>{
+  path: string
+}</code></pre>
+
+                    <h3>move_file</h3>
+                    <p>Moves or renames a file or directory.</p>
+                    <pre><code>{
+  source: string,
+  destination: string
+}</code></pre>
+
+                    <h3>copy_file</h3>
+                    <p>Copies a file or directory, with an option to overwrite.</p>
+                    <pre><code>{
+  source: string,
+  destination: string,
+  overwrite?: boolean
+}</code></pre>
+
+                    <h3>get_file_info</h3>
+                    <p>Retrieves metadata about a file or directory.</p>
+                    <pre><code>{
+  path: string
+}</code></pre>
+
+                    <h3>collect_ide_plugins</h3>
+                    <p>Aggregates IDE plugin configurations.</p>
+                    <pre><code>{}</code></pre>
+                </div>
+            </div>
+        </div>
+    </main>
+
+    <footer>
+        <div class="container">
+            <p>&copy; 2025 Ploinky Project. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Theme toggle
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+        const themes = ['light', 'dark', 'blue'];
+        const themeIcons = {
+            light: '🌙', // Icon to show for switching to dark
+            dark: '🔵',  // Icon to show for switching to blue
+            blue: '☀️'   // Icon to show for switching to light
+        };
+
+        const applyTheme = (theme) => {
+            body.setAttribute('data-theme', theme);
+            localStorage.setItem('theme', theme);
+            themeToggle.textContent = themeIcons[theme];
+        };
+        
+        const savedTheme = localStorage.getItem('theme') || 'light';
+        applyTheme(savedTheme);
+        
+        themeToggle.addEventListener('click', () => {
+            const currentTheme = body.getAttribute('data-theme');
+            const currentIndex = themes.indexOf(currentTheme);
+            const nextIndex = (currentIndex + 1) % themes.length;
+            const newTheme = themes[nextIndex];
+            applyTheme(newTheme);
+        });
+    </script>
+</body>
+</html>
