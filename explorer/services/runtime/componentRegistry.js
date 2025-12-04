@@ -78,12 +78,14 @@ export function createComponentRegistry(webSkel) {
             return componentCache.get(cacheKey);
         }
 
+        const componentType = meta?.componentType === 'modals' ? 'modals' : 'components';
         const assets = await fetchComponentAssets(meta);
         const scopedCss = scopeCssToComponent(assets.css, meta.componentName);
         const presenterModuleInstance = await importPresenterModule(meta, assets.safeBase, assets.presenterSource);
 
         const component = {
             name: meta.componentName,
+            componentType,
             loadedTemplate: assets.template,
             loadedCSS: scopedCss,
             presenterClassName: isNonEmptyString(meta.presenterName) ? meta.presenterName.trim() : undefined,
@@ -91,7 +93,11 @@ export function createComponentRegistry(webSkel) {
             agent: meta.agent
         };
 
-        const registrationPayload = { ...component, loadedCSSs: [scopedCss] };
+        const registrationPayload = {
+            ...component,
+            loadedCSSs: [scopedCss],
+            type: componentType
+        };
         if (
             presenterModuleInstance &&
             component.presenterClassName &&

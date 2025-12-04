@@ -206,34 +206,61 @@ export function scopeCssToComponent(cssText, componentName) {
 
 export async function registerRuntimeComponent(webSkel, componentDefinition) {
     const {name, loadedTemplate, loadedCSSs, presenterClassName, presenterModule} = componentDefinition;
+    const componentType = componentDefinition.componentType || componentDefinition.type;
+    const normalizedType = componentType === 'modals' ? 'modals' : 'components';
     const resourceManager = webSkel.ResourceManager;
 
-    const ensurePresenterRegistered = async () => {
-        if (
-            presenterClassName
-            && presenterModule
-            && typeof presenterModule === 'object'
-            && presenterModule[presenterClassName]
-        ) {
-            resourceManager.components[name] = resourceManager.components[name] || {
+    const ensureResourceEntry = () => {
+        const entry = resourceManager.components[name];
+        if (!entry || typeof entry !== 'object') {
+            resourceManager.components[name] = {
                 html: '',
                 css: [],
                 presenter: null,
                 loadingPromise: null,
                 isPromiseFulfilled: false
             };
+        }
+        return resourceManager.components[name];
+    };
+
+    const upsertConfigEntry = () => {
+        const configs = webSkel.configs?.components;
+        if (!Array.isArray(configs)) {
+            return;
+        }
+        const baseEntry = {
+            name,
+            type: normalizedType,
+            presenterClassName,
+            loadedTemplate,
+            loadedCSSs: loadedCSSs || []
+        };
+        const existingIndex = configs.findIndex((c) => c && c.name === name);
+        if (existingIndex === -1) {
+            configs.push(baseEntry);
+            return;
+        }
+        configs[existingIndex] = {
+            ...configs[existingIndex],
+            ...baseEntry
+        };
+    };
+
+    const ensurePresenterRegistered = async () => {
+        ensureResourceEntry();
+        if (
+            presenterClassName
+            && presenterModule
+            && typeof presenterModule === 'object'
+            && presenterModule[presenterClassName]
+        ) {
             resourceManager.registerPresenter(name, presenterModule[presenterClassName]);
         }
     };
 
     const updateResourceEntry = async () => {
-        const entry = resourceManager.components[name] || {
-            html: '',
-            css: [],
-            presenter: null,
-            loadingPromise: null,
-            isPromiseFulfilled: false
-        };
+        const entry = ensureResourceEntry();
         entry.html = loadedTemplate;
         entry.css = Array.isArray(loadedCSSs) ? loadedCSSs : [];
         entry.isPromiseFulfilled = true;
@@ -251,27 +278,18 @@ export async function registerRuntimeComponent(webSkel, componentDefinition) {
     };
 
     if (!customElements.get(name)) {
-        await webSkel.defineComponent(componentDefinition);
+        await webSkel.defineComponent({
+            ...componentDefinition,
+            type: normalizedType
+        });
         await ensurePresenterRegistered();
+        await updateResourceEntry();
+        upsertConfigEntry();
         return;
     }
 
     await updateResourceEntry();
-
-    const existingConfigIndex = webSkel.configs.components.findIndex((c) => c && c.name === name);
-    if (existingConfigIndex !== -1) {
-        webSkel.configs.components[existingConfigIndex] = {
-            ...webSkel.configs.components[existingConfigIndex],
-            loadedTemplate,
-            loadedCSSs: loadedCSSs || []
-        };
-    } else {
-        webSkel.configs.components.push({
-            name,
-            loadedTemplate,
-            loadedCSSs: loadedCSSs || []
-        });
-    }
+    upsertConfigEntry();
 }
 
 async function openPlugin(componentName, type, context, presenter, autoPin = false) {

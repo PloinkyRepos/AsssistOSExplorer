@@ -88,9 +88,7 @@ chapter-item {
     align-items: center;
     justify-content: space-between;
     padding: 5px;
-    width: 30%;
-    border-top-left-radius: 5px;
-    border-top-right-radius: 5px;
+    width: 100%;
 }
 .chapter-left-section{
     display: flex;
@@ -190,6 +188,9 @@ html[theme="dark"] input.chapter-title{
 .chapter-plugins-icons{
     display: flex;
     width: 100%;
+    flex-wrap: nowrap;
+    gap: 6px;
+    overflow: hidden;
 }
 .rotate-down{
     transform: rotate(180deg);

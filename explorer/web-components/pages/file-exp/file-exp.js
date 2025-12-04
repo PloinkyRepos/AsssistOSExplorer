@@ -35,6 +35,19 @@ export class FileExp {
         this.menuKeydownListenerAttached = false;
     }
 
+    async withLoader(fn) {
+        const webSkel = window.webSkel;
+        const hasLoader = Boolean(webSkel?.showLoading) && Boolean(webSkel?.hideLoading);
+        const loaderId = hasLoader ? webSkel.showLoading() : null;
+        try {
+            return await fn();
+        } finally {
+            if (hasLoader) {
+                webSkel.hideLoading(loaderId);
+            }
+        }
+    }
+
     beforeUnload() {
         window.removeEventListener('popstate', this.boundLoadStateFromURL);
         this.detachPreviewAnchorHandler();
@@ -391,21 +404,23 @@ export class FileExp {
     }
 
     async loadDirectory(path = this.state.path) {
-        if (this.state.isEditing) {
-            await this.cancelEdit();
-        }
-        this.state.path = this.normalizePath(path);
-        this.state.selectedPath = null;
-        this.state.fileContent = "";
-        this.state.previewContent = "";
-        this.state.selectedIsMarkdown = false;
-        this.state.markdownTextView = false;
-        this.state.documentId = null;
-        this.state.isEditing = false;
-        this.state.openMenuPath = null;
-        this.pendingMenuFocusPath = null;
-        this.state.entries = await this.loadDirectoryContent(this.state.path);
-        this.invalidate();
+        await this.withLoader(async () => {
+            if (this.state.isEditing) {
+                await this.cancelEdit();
+            }
+            this.state.path = this.normalizePath(path);
+            this.state.selectedPath = null;
+            this.state.fileContent = "";
+            this.state.previewContent = "";
+            this.state.selectedIsMarkdown = false;
+            this.state.markdownTextView = false;
+            this.state.documentId = null;
+            this.state.isEditing = false;
+            this.state.openMenuPath = null;
+            this.pendingMenuFocusPath = null;
+            this.state.entries = await this.loadDirectoryContent(this.state.path);
+            this.invalidate();
+        });
     }
 
     async selectEntry(element) {
@@ -553,19 +568,21 @@ export class FileExp {
         }
 
         try {
-            const tool = type === 'directory' ? 'delete_directory' : 'delete_file';
-            await window.webSkel.appServices.callTool('explorer', tool, {path: path});
-            this.showStatus(`Successfully deleted ${path}`);
+            await this.withLoader(async () => {
+                const tool = type === 'directory' ? 'delete_directory' : 'delete_file';
+                await window.webSkel.appServices.callTool('explorer', tool, {path: path});
+                this.showStatus(`Successfully deleted ${path}`);
 
-            if (this.state.selectedPath === path) {
-                this.state.selectedPath = null;
-                this.state.fileContent = "";
-            }
-            if (this.state.clipboard?.path === path) {
-                this.state.clipboard = null;
-            }
+                if (this.state.selectedPath === path) {
+                    this.state.selectedPath = null;
+                    this.state.fileContent = "";
+                }
+                if (this.state.clipboard?.path === path) {
+                    this.state.clipboard = null;
+                }
 
-            await this.loadDirectory(this.state.path);
+                await this.loadDirectory(this.state.path);
+            });
         } catch (err) {
             console.error(err);
             this.showStatus(err.message || 'Failed to delete.', true);
@@ -598,22 +615,24 @@ export class FileExp {
             return;
         }
         try {
-            await window.webSkel.appServices.callTool('explorer', 'move_file', { source, destination });
-            const wasSelected = this.state.selectedPath === source;
-            if (this.state.clipboard?.path === source) {
-                this.state.clipboard = { ...this.state.clipboard, path: destination, name: newName };
-            }
-            this.state.entries = await this.loadDirectoryContent(this.state.path);
-            this.showStatus(`Renamed "${currentName}" to "${newName}".`);
-            if (wasSelected) {
-                this.state.selectedPath = destination;
-                history.replaceState(null, '', `#file-exp${destination}`);
-                if (itemType === 'file') {
-                    await this.openFile(destination);
-                    return;
+            await this.withLoader(async () => {
+                await window.webSkel.appServices.callTool('explorer', 'move_file', { source, destination });
+                const wasSelected = this.state.selectedPath === source;
+                if (this.state.clipboard?.path === source) {
+                    this.state.clipboard = { ...this.state.clipboard, path: destination, name: newName };
                 }
-            }
-            this.invalidate();
+                this.state.entries = await this.loadDirectoryContent(this.state.path);
+                this.showStatus(`Renamed "${currentName}" to "${newName}".`);
+                if (wasSelected) {
+                    this.state.selectedPath = destination;
+                    history.replaceState(null, '', `#file-exp${destination}`);
+                    if (itemType === 'file') {
+                        await this.openFile(destination);
+                        return;
+                    }
+                }
+                this.invalidate();
+            });
         } catch (err) {
             console.error(err);
             this.showStatus(err.message || 'Failed to rename entry.', true);
@@ -774,46 +793,48 @@ export class FileExp {
         }
 
         try {
-            if (clipboard.mode === 'cut') {
-                await window.webSkel.appServices.callTool('explorer', 'move_file', {
-                    source: clipboard.path,
-                    destination
-                });
-                this.state.clipboard = null;
-                this.showStatus(`Moved to ${destination}.`);
-            } else {
-                let overwrite = false;
-                if (existsInTarget) {
-                    const shouldOverwrite = confirm(`"${desiredName}" already exists here. Overwrite it?`);
-                    if (!shouldOverwrite) {
-                        return;
+            await this.withLoader(async () => {
+                if (clipboard.mode === 'cut') {
+                    await window.webSkel.appServices.callTool('explorer', 'move_file', {
+                        source: clipboard.path,
+                        destination
+                    });
+                    this.state.clipboard = null;
+                    this.showStatus(`Moved to ${destination}.`);
+                } else {
+                    let overwrite = false;
+                    if (existsInTarget) {
+                        const shouldOverwrite = confirm(`"${desiredName}" already exists here. Overwrite it?`);
+                        if (!shouldOverwrite) {
+                            return;
+                        }
+                        overwrite = true;
                     }
-                    overwrite = true;
+                    await window.webSkel.appServices.callTool('explorer', 'copy_file', {
+                        source: clipboard.path,
+                        destination,
+                        overwrite
+                    });
+                    this.showStatus(`Copied to ${destination}${overwrite ? ' (overwritten)' : ''}.`);
                 }
-                await window.webSkel.appServices.callTool('explorer', 'copy_file', {
-                    source: clipboard.path,
-                    destination,
-                    overwrite
-                });
-                this.showStatus(`Copied to ${destination}${overwrite ? ' (overwritten)' : ''}.`);
-            }
 
-            const targetMatchesCurrentView = targetIsCurrentDirectory;
-            const sourceMatchesCurrentView = sourceParent === this.state.path;
+                const targetMatchesCurrentView = targetIsCurrentDirectory;
+                const sourceMatchesCurrentView = sourceParent === this.state.path;
 
-            if (targetMatchesCurrentView || sourceMatchesCurrentView) {
-                this.state.entries = await this.loadDirectoryContent(this.state.path);
-            }
+                if (targetMatchesCurrentView || sourceMatchesCurrentView) {
+                    this.state.entries = await this.loadDirectoryContent(this.state.path);
+                }
 
-            if (wasSelectedFile) {
-                this.state.selectedPath = destination;
-                const historyMethod = clipboard.mode === 'cut' ? 'replaceState' : 'pushState';
-                history[historyMethod](null, '', `#file-exp${destination}`);
-                await this.openFile(destination);
-                return;
-            }
+                if (wasSelectedFile) {
+                    this.state.selectedPath = destination;
+                    const historyMethod = clipboard.mode === 'cut' ? 'replaceState' : 'pushState';
+                    history[historyMethod](null, '', `#file-exp${destination}`);
+                    await this.openFile(destination);
+                    return;
+                }
 
-            this.invalidate();
+                this.invalidate();
+            });
         } catch (err) {
             console.error(err);
             this.showStatus(err.message || 'Failed to paste item.', true);
@@ -990,9 +1011,11 @@ export class FileExp {
         }
         const newFilePath = this.joinPath(this.state.path, fileName.trim());
         try {
-            await window.webSkel.appServices.callTool('explorer', 'write_file', {path: newFilePath, content: ''});
-            this.showStatus(`Successfully created file.`);
-            await this.loadDirectory(this.state.path);
+            await this.withLoader(async () => {
+                await window.webSkel.appServices.callTool('explorer', 'write_file', {path: newFilePath, content: ''});
+                this.showStatus(`Successfully created file.`);
+                await this.loadDirectory(this.state.path);
+            });
         } catch (err) {
             console.error(err);
             this.showStatus(err.message || 'Failed to create file.', true);
@@ -1019,9 +1042,11 @@ export class FileExp {
         }
         const newDirPath = this.joinPath(this.state.path, dirName.trim());
         try {
-            await window.webSkel.appServices.callTool('explorer', 'create_directory', {path: newDirPath});
-            this.showStatus(`Successfully created directory.`);
-            await this.loadDirectory(this.state.path);
+            await this.withLoader(async () => {
+                await window.webSkel.appServices.callTool('explorer', 'create_directory', {path: newDirPath});
+                this.showStatus(`Successfully created directory.`);
+                await this.loadDirectory(this.state.path);
+            });
         } catch (err) {
             console.error(err);
             this.showStatus(err.message || 'Failed to create directory.', true);

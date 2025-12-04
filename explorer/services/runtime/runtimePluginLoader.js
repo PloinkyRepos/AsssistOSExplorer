@@ -53,25 +53,26 @@ export function createRuntimePluginLoader({
 
     const scheduleComponents = (runtimePlugins) => {
         const scheduled = new Map();
-        const scheduleComponent = (meta) => {
-            const componentName = meta?.componentName;
-            const agent = meta?.agent;
-            if (!isNonEmptyString(componentName) || !isNonEmptyString(agent)) {
-                return;
-            }
+    const scheduleComponent = (meta) => {
+        const componentName = meta?.componentName;
+        const agent = meta?.agent;
+        if (!isNonEmptyString(componentName) || !isNonEmptyString(agent)) {
+            return;
+        }
             const key = `${agent.trim()}::${componentName.trim()}`;
             if (!scheduled.has(key)) {
-                scheduled.set(key, {
-                    componentName: componentName.trim(),
-                    presenterName: isNonEmptyString(meta.presenterName) ? meta.presenterName.trim() : undefined,
-                    agent: agent.trim(),
-                    ownerComponent: isNonEmptyString(meta.ownerComponent) ? meta.ownerComponent.trim() : undefined,
-                    isDependency: Boolean(meta.isDependency),
-                    customPath: isNonEmptyString(meta.customPath) ? meta.customPath.trim() : undefined,
-                    baseUrl: isNonEmptyString(meta.baseUrl) ? meta.baseUrl.trim() : undefined
-                });
-            }
-        };
+            scheduled.set(key, {
+                componentName: componentName.trim(),
+                presenterName: isNonEmptyString(meta.presenterName) ? meta.presenterName.trim() : undefined,
+                agent: agent.trim(),
+                ownerComponent: isNonEmptyString(meta.ownerComponent) ? meta.ownerComponent.trim() : undefined,
+                isDependency: Boolean(meta.isDependency),
+                customPath: isNonEmptyString(meta.customPath) ? meta.customPath.trim() : undefined,
+                baseUrl: isNonEmptyString(meta.baseUrl) ? meta.baseUrl.trim() : undefined,
+                componentType: meta?.componentType === 'modals' ? 'modals' : 'components'
+            });
+        }
+    };
 
         for (const entries of Object.values(runtimePlugins || {})) {
             if (!Array.isArray(entries)) {
@@ -87,7 +88,8 @@ export function createRuntimePluginLoader({
                     agent: plugin.agent,
                     ownerComponent: plugin.component,
                     isDependency: false,
-                    baseUrl: plugin.componentBaseUrl
+                    baseUrl: plugin.componentBaseUrl,
+                    componentType: plugin.type === 'modal' ? 'modals' : 'components'
                 });
                 if (Array.isArray(plugin.dependencies)) {
                     for (const dependency of plugin.dependencies) {
@@ -101,7 +103,8 @@ export function createRuntimePluginLoader({
                             ownerComponent: dependency.ownerComponent || plugin.component,
                             isDependency: true,
                             customPath: dependency.path || dependency.directory,
-                            baseUrl: dependency.baseUrl
+                            baseUrl: dependency.baseUrl,
+                            componentType: dependency.type === 'modal' ? 'modals' : 'components'
                         });
                     }
                 }

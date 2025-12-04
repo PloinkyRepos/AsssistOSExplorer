@@ -185,56 +185,6 @@
       "name": "paragraph-video-preview",
       "type": "components",
       "presenterClassName": "ParagraphVideoPreview"
-    },
-    {
-      "name": "audio-creator",
-      "type": "components",
-      "presenterClassName": "AudioCreator"
-    },
-    {
-      "name": "video-creator",
-      "type": "components",
-      "presenterClassName": "VideoCreator"
-    },
-    {
-      "name": "image-creator",
-      "type": "components",
-      "presenterClassName": "ImageCreator"
-    },
-    {
-      "name": "audio-plugin",
-      "type": "modals",
-      "presenterClassName": "AudioPlugin"
-    },
-    {
-      "name": "image-plugin",
-      "type": "modals",
-      "presenterClassName": "ImagePlugin"
-    },
-    {
-      "name": "video-plugin",
-      "type": "modals",
-      "presenterClassName": "VideoPlugin"
-    },
-    {
-      "name": "ffmpeg-image-to-video",
-      "type": "modals",
-      "presenterClassName": "FFMpegImageToVideo"
-    },
-    {
-      "name": "simple-state-icon",
-      "type": "components",
-      "presenterClassName": "SimpleStateIcon"
-    },
-    {
-      "name": "effect-item",
-      "type": "components",
-      "presenterClassName": "EffectItem"
-    },
-    {
-      "name": "edit-effect-modal",
-      "type": "modals",
-      "presenterClassName": "EditEffectModal"
     }
   ],
   "services": []
