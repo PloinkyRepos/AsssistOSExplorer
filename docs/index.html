@@ -1,1 +1,264 @@
-Achilles IDE Documentation Page
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Explorer Agent – Detailed Guide</title>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif, "Apple Color Emoji", "Segoe UI Emoji";
+            line-height: 1.6;
+            color: #333;
+            max-width: 960px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        h1, h2, h3, h4, h5, h6 {
+            font-weight: 600;
+            margin-top: 24px;
+            margin-bottom: 16px;
+            border-bottom: 1px solid #eaecef;
+            padding-bottom: 8px;
+        }
+        h1 { font-size: 2em; }
+        h2 { font-size: 1.5em; }
+        h3 { font-size: 1.25em; }
+        code {
+            font-family: "SFMono-Regular", Consolas, "Liberation Mono", Menlo, Courier, monospace;
+            background-color: #f6f8fa;
+            padding: 0.2em 0.4em;
+            margin: 0;
+            font-size: 85%;
+            border-radius: 3px;
+        }
+        pre {
+            background-color: #f6f8fa;
+            padding: 16px;
+            overflow: auto;
+            border-radius: 3px;
+        }
+        pre code {
+            padding: 0;
+            margin: 0;
+            font-size: 100%;
+            background-color: transparent;
+            border: 0;
+        }
+        ul, ol {
+            padding-left: 2em;
+        }
+        li {
+            margin-bottom: 0.5em;
+        }
+        strong {
+            font-weight: 600;
+        }
+        hr {
+            height: 0.25em;
+            padding: 0;
+            margin: 24px 0;
+            background-color: #e1e4e8;
+            border: 0;
+        }
+    </style>
+</head>
+<body>
+    <h1>Explorer Agent – Detailed Guide</h1>
+    <p>This document explains how the <strong>Explorer</strong> agent works end‑to‑end: its runtime environment, backend and frontend architecture, MCP tools, blob storage, and the plugin system. It provides a comprehensive overview for developers looking to understand, extend, or interact with the Explorer agent.</p>
+    <hr>
+    <h2>1. What the Explorer Is</h2>
+    <p>The Explorer is a multi-faceted agent that serves as the primary user interface and file management hub within the Ploinky workspace.</p>
+    <ul>
+        <li><strong>A Containerised Agent</strong>: It runs as a containerized Node.js application that serves a web-based UI and exposes a set of secure filesystem MCP (Model Context Protocol) tools.</li>
+        <li><strong>A Plugin Host</strong>: It features a powerful plugin system. Any <code>IDE-plugins</code> directory found in enabled repositories is scanned at startup. The discovered plugins are then made available contextually (at the document, chapter, or paragraph level) within the UI.</li>
+        <li><strong>A Blob Service</strong>: It includes a blob storage service for handling file uploads. The service is available at the <code>/blobs/:agentId</code> endpoint, storing files in a <code>blobs/</code> directory using content-addressable IDs for efficient storage and retrieval.</li>
+        <li><strong>A Document Manager</strong>: It has specialized functionality for parsing and interacting with Markdown (<code>.md</code>) files, treating them as structured documents composed of chapters and paragraphs.</li>
+    </ul>
+    <p><strong>High-Level Flow:</strong></p>
+    <pre><code>User Browser (Web UI built on WebSkel)
+    |
+    | HTTP (Served by the Explorer container)
+    v
+Explorer Backend (filesystem-http-server.mjs)
+    - Serves the static UI (HTML, JS, CSS)
+    - Exposes MCP filesystem tools for other agents
+    - Handles file uploads via the /blobs endpoint
+    - Discovers plugins and serves their manifests to the UI
+    |
+    v
+Workspace Filesystem (Mounted into the container)
+</code></pre>
+    <hr>
+    <h2>2. Runtime and Routing</h2>
+    <ul>
+        <li><strong>Runtime</strong>: The Explorer agent's container configuration is defined in <code>manifest.json</code>. This file specifies how the container runs, including mounting the workspace and the agent library.</li>
+        <li><strong>Routing</strong>: The main Ploinky router (configured in <code>.ploinky/routing.json</code>) maps the <code>explorer</code> agent to a specific port on the host machine (e.g., 8082). The UI is accessed through this port.</li>
+        <li><strong>Inter-Agent Communication</strong>: Other agents running in the same environment can communicate with the Explorer agent using its service name and the router port. For blob access, the URL format is typically <code>http://host.docker.internal:${PLOINKY_ROUTER_PORT || 8080}/blobs/explorer/&lt;blobId&gt;</code>.</li>
+    </ul>
+    <hr>
+    <h2>3. Backend (<code>filesystem-http-server.mjs</code>)</h2>
+    <p>The backend is a Node.js server with several key responsibilities:</p>
+    <ul>
+        <li><strong>Static File Server</strong>: Serves all static assets for the frontend application, including <code>index.html</code>, JavaScript files, CSS, and plugin assets.</li>
+        <li><strong>MCP Tool Provider</strong>: Exposes a suite of MCP tools for filesystem operations (e.g., <code>read_text_file</code>, <code>write_file</code>, <code>list_directory</code>). These tools are the primary way other agents interact with the workspace filesystem.</li>
+        <li><strong>Security Layer</strong>: Enforces a strict path-whitelisting policy (<code>allowedDirectories</code>) to prevent unauthorized file access and block path traversal attacks. Any request for a path outside the defined workspace is rejected.</li>
+        <li><strong>Plugin Discovery</strong>: On startup, the server recursively scans all enabled repositories for <code>IDE-plugins/*/config.json</code> manifests. It aggregates these configurations into a single plugin catalog that is then sent to the frontend.</li>
+        <li><strong>Blob Storage Endpoint</strong>: Manages file uploads via a <code>POST</code> endpoint at <code>/blobs/:agentId</code>. It calculates a content-based hash for each file, stores it in the <code>blobs/</code> directory, and returns a JSON object with the file's metadata (<code>id</code>, <code>filename</code>, <code>localPath</code>, <code>downloadUrl</code>, <code>mime</code>, <code>size</code>).</li>
+    </ul>
+    <hr>
+    <h2>4. Frontend (WebSkel SPA)</h2>
+    <p>The frontend is a Single-Page Application (SPA) located in the <code>explorer/</code> directory.</p>
+    <ul>
+        <li><strong>Framework</strong>: It is built using <strong>WebSkel</strong>, a lightweight, component-based framework. For more details, refer to the <a href="https://github.com/OutfinityResearch/WebSkel/blob/master/README.md">WebSkel README</a>.</li>
+        <li><strong>Component Structure</strong>: UI components are defined in <code>explorer/webskel.json</code> and organized into <code>pages</code>, <code>components</code>, and <code>modals</code> within the <code>explorer/web-components/</code> directory.</li>
+        <li><strong>Presenters</strong>: Each component is driven by a JavaScript presenter class. The presenter's constructor receives the component's <code>element</code> and an <code>invalidate</code> function. Calling <code>invalidate()</code> triggers a re-render of the component, making the UI reactive. Presenters must also implement <code>beforeRender()</code> and <code>afterRender()</code> lifecycle hooks.</li>
+        <li><strong>Plugin Integration</strong>: The frontend is responsible for dynamically rendering plugin icons in the UI based on their specified <code>location</code> and for loading and instantiating the plugin's web component when a user interacts with it.</li>
+    </ul>
+    <hr>
+    <h2>5. Managing and Editing <code>.md</code> Documents</h2>
+    <p>A core feature of the Explorer agent is its specialized handling of Markdown (<code>.md</code>) files. Instead of treating them as plain text, Explorer parses them into a structured <strong>Document Object Model</strong>.</p>
+    <h3>5.1. Structural Parsing</h3>
+    <p>The primary goal is to transform static Markdown files into interactive, extensible documents. To achieve this, Explorer parses the <code>.md</code> file into a tree of <strong>Chapters</strong> (typically denoted by H1 or H2 headings) and <strong>Paragraphs</strong>. This hierarchical structure allows plugins to be highly context-aware. A plugin with <code>"location": ["paragraph"]</code> will appear on every paragraph, enabling actions on specific blocks of text.</p>
+    <h3>5.2. Data Persistence via Soplang Commands</h3>
+    <p>A key architectural concept is that <strong><code>.md</code> files are not just for storing human-readable text; they are also a persistence layer for structured data.</strong> This is achieved by embedding <code>soplang</code> commands directly within the text.</p>
+    <ul>
+        <li><strong>Syntax</strong>: These commands follow a simple <code>@command</code> syntax. For example: <code>@command arg1 "value 1" arg2 "value 2"</code>.</li>
+        <li><strong>Use Case: Media Attachments</strong>: The most common use case is for attaching media. When a user uploads an image, the following happens:
+            <ol>
+                <li>The file is sent to the <strong>Blob Service</strong>, which returns a unique, content-based <code>blobId</code>.</li>
+                <li>The plugin then uses the <code>documentModule</code> to insert a <code>soplang</code> command into the active paragraph. The command looks like this:
+                    <pre><code>@media_image_123 attach id "z2x...blobId...y9a" name "my-cat.png"</code></pre>
+                </li>
+                <li>This entire line is saved as part of the <code>.md</code> file's content. It is both machine-readable and provides a hint to human readers.</li>
+            </ol>
+        </li>
+        <li><strong>Parsing</strong>: When Explorer loads a document, its parsing service (e.g., <code>mediaAttachmentUtils.js</code>) scans the text for these commands. It extracts the command and its arguments and makes them available to the frontend UI.</li>
+        <li><strong>Rendering</strong>: The frontend uses this parsed data to render rich components. For instance, instead of displaying the raw <code>@media_image...</code> text, it will render an <code>&lt;img&gt;</code> tag pointing to the blob's URL.</li>
+    </ul>
+    <p>This mechanism allows the <code>.md</code> file to be a self-contained, rich document that holds both formatted text and the structured data needed for interactive features.</p>
+    <h3>5.3. Editing and State Management</h3>
+    <p>When a user or plugin modifies a document, Explorer uses its Document Object Model to make targeted changes. Whether updating a paragraph's text or adding a <code>soplang</code> command, the <code>documentModule</code> ensures that the <code>.md</code> file is rewritten correctly, preserving both the text and the embedded commands.</p>
+    <hr>
+    <h2>6. The Plugin System</h2>
+    <h3>Discovery</h3>
+    <ul>
+        <li>At server startup, Explorer scans all enabled repos for <code>IDE-plugins/*/config.json</code>.</li>
+        <li>These manifests are merged into a single plugin catalog sent to the client.</li>
+    </ul>
+    <h3>Manifest (<code>config.json</code>)</h3>
+    <pre><code>{
+  "component": "my-plugin-component",
+  "presenter": "MyPluginPresenter",
+  "type": "modal",
+  "location": ["chapter", "paragraph"],
+  "tooltip": "A helpful tooltip for the icon",
+  "icon": "./icon.svg"
+}
+</code></pre>
+    <h3>Plugin Folder Layout</h3>
+    <pre><code>IDE-plugins/
+  my-plugin/
+    config.json        # Manifest (required)
+    my-plugin.js       # Presenter class
+    my-plugin.html     # HTML template
+    my-plugin.css      # Styles
+    icon.svg           # Toolbar icon
+</code></pre>
+    <hr>
+    <h2>7. Example: "Uppercase Paragraph" Plugin</h2>
+    <p>This example demonstrates the correct structure of a WebSkel presenter, including the mandatory <code>beforeRender</code> and <code>afterRender</code> lifecycle methods.</p>
+    <ol>
+        <li><strong>Create Folder</strong>: <code>IDE-plugins/uppercase/</code></li>
+        <li><strong><code>config.json</code></strong>:
+            <pre><code>{
+  "component": "uppercase-plugin",
+  "presenter": "UppercasePlugin",
+  "type": "modal",
+  "location": ["paragraph"],
+  "tooltip": "Uppercase paragraph",
+  "icon": "./icon.svg"
+}
+</code></pre>
+        </li>
+        <li><strong><code>uppercase-plugin.html</code></strong>:
+            <pre><code>&lt;div class="modal-header"&gt;
+  &lt;div&gt;Uppercase Paragraph&lt;/div&gt;
+  &lt;div class="close" data-local-action="closeModal"&gt;&times;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="modal-body"&gt;
+  &lt;p&gt;This will convert the paragraph with text: "&lt;strong&gt;${this.paragraph.text}&lt;/strong&gt;" to uppercase.&lt;/p&gt;
+  &lt;button class="general-button" data-local-action="apply"&gt;Apply&lt;/button&gt;
+&lt;/div&gt;
+</code></pre>
+        </li>
+        <li><strong><code>uppercase-plugin.js</code></strong>:
+            <pre><code>import { getContextualElement } from "../utils/pluginUtils.js";
+const documentModule = assistOS.loadModule("document");
+
+export class UppercasePlugin {
+  constructor(element, invalidate) {
+    this.element = element;
+    this.invalidate = invalidate;
+    // The invalidate call is crucial and should be done in the constructor.
+    this.invalidate();
+  }
+
+  beforeRender() {
+    // This method is called before the component's HTML is rendered.
+    // We use it to get the contextual data (chapter and paragraph).
+    const { chapter, paragraph } = getContextualElement(this.element);
+    this.chapter = chapter;
+    this.paragraph = paragraph;
+  }
+
+  afterRender() {
+    // This method is called after the component's HTML has been rendered and inserted into the DOM.
+    // It's the ideal place to add event listeners.
+    const button = this.element.querySelector('[data-local-action="apply"]');
+    button.addEventListener("click", this.apply.bind(this));
+  }
+
+  async apply() {
+    const text = this.paragraph?.text || "";
+    await documentModule.updateParagraphText(this.chapter.id, this.paragraph.id, text.toUpperCase());
+    assistOS.UI.showToast("Paragraph updated successfully!", "success");
+    this.closeModal();
+  }
+
+  closeModal() {
+    assistOS.UI.closeModal(this.element);
+  }
+}
+</code></pre>
+        </li>
+        <li><strong>Add <code>icon.svg</code></strong> and restart Explorer to see the plugin.</li>
+    </ol>
+    <hr>
+    <h2>8. MCP Tools Exposed by Explorer</h2>
+    <p>The Explorer agent exposes a secure API for file manipulation via MCP tools. Other agents should use these tools instead of attempting direct filesystem access.</p>
+    <ul>
+        <li><strong>Common Tools</strong>: <code>read_text_file</code>, <code>write_file</code>, <code>list_directory</code>, <code>stat</code>, <code>make_directory</code>, <code>delete_path</code>. (Check <code>filesystem-http-server.mjs</code> for the exact exported names).</li>
+        <li><strong>Security</strong>: All tools are sandboxed and enforce the <code>allowedDirectories</code> configuration, ensuring that operations are confined to the intended workspace.</li>
+    </ul>
+    <hr>
+    <h2>9. Development Tips</h2>
+    <ul>
+        <li><strong>Restart on Change</strong>: You must restart the Explorer agent after adding, removing, or modifying a plugin's <code>config.json</code> to force the server to rebuild its plugin catalog.</li>
+        <li><strong>Use Blob IDs</strong>: Store blob IDs, not full URLs, in document commands or plugin state. URLs can change and should be constructed on-demand using helpers like <code>blobUrl.buildBlobUrl</code>.</li>
+        <li><strong>Use the Document Module</strong>: When modifying document content from a plugin, always use the <code>assistOS.loadModule("document")</code> functions to ensure data consistency and proper UI updates.</li>
+        <li><strong>Media Formats</strong>: For plugins involving media processing (e.g., with ffmpeg), prefer standard formats like PNG, JPG, MP4, and MP3. SVG is often not supported in these pipelines.</li>
+    </ul>
+    <hr>
+    <h2>10. Visual Cheatsheet (Repo Layout)</h2>
+    <pre><code>.../fileExplorer/explorer/
+├─ filesystem-http-server.mjs   # Backend: MCP, Blob Service, Plugin Discovery
+├─ index.html / main.js         # SPA entry point
+├─ webskel.json                 # Defines the core UI components
+├─ web-components/              # Implementation of core UI components
+├─ IDE-plugins/                 # Location for plugins (discovered recursively)
+│   └─ &lt;plugin&gt;/config.json
+├─ services/                    # Frontend services, including document parsing
+└─ utils/                       # Shared utilities for the frontend
+</code></pre>
+</body>
+</html>
