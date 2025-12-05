@@ -98,7 +98,7 @@ body {
 
 /* Layout */
 .container {
-  max-width: 1200px;
+  max-width: calc(100% - 40px);
   margin: 0 auto;
   padding: 0 20px;
 }
@@ -116,8 +116,16 @@ header {
 
 .header-content {
   display: flex;
-  justify-content: space-between;
+  flex-direction: column;
+  gap: 0.75rem;
+  width: 100%;
+}
+
+.header-top {
+  display: flex;
   align-items: center;
+  justify-content: space-between;
+  width: 100%;
 }
 
 .logo {
@@ -145,8 +153,10 @@ header {
 nav ul {
   list-style: none;
   display: flex;
-  gap: 2rem;
+  gap: 1rem;
   align-items: center;
+  flex-wrap: wrap;
+  justify-content: center;
 }
 
 nav a {

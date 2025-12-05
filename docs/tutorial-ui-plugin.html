@@ -10,10 +10,13 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <a href="index.html" class="logo">
-                    <div class="logo-icon">🚀</div>
-                    <span>Ploinky Explorer</span>
-                </a>
+                <div class="header-top">
+                    <a href="index.html" class="logo">
+                        <div class="logo-icon">🚀</div>
+                        <span>Ploinky Explorer</span>
+                    </a>
+                    <button class="theme-toggle" id="themeToggle">🌙</button>
+                </div>
                 <nav>
                     <ul>
                         <li><a href="index.html">Home</a></li>
@@ -23,7 +26,6 @@
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="soplang.html">SOPLang</a></li>
                         <li><a href="build.html">Build</a></li>
-                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
                     </ul>
                 </nav>
             </div>
@@ -36,74 +38,15 @@
                 <aside class="sidebar">
                     <h3>UI Plugin Tutorial</h3>
                     <ul>
-                        <li><a href="#step1">Step 1: Scaffolding</a></li>
-                        <li><a href="#step2">Step 2: Manifest</a></li>
-                        <li><a href="#step3">Step 3: UI Code</a></li>
-                        <li><a href="#step4">Step 4: Building</a></li>
+                        <li><a href="development.html#plugin-ui">Go to Development page</a></li>
                     </ul>
                 </aside>
 
                 <div class="content-wrapper">
-                    <div class="doc-section" id="step1">
-                        <h1>UI Plugin Tutorial</h1>
-                        <p>This tutorial will guide you through the process of creating a simple UI plugin for the Achilles IDE.</p>
-
-                        <h2>Step 1: Scaffolding your plugin</h2>
-                        <p>First, you need to create a new directory for your plugin. The directory structure should look like this:</p>
-                        <pre><code>/my-ui-plugin
-|-- /ui
-|   |-- index.html
-|   |-- script.js
-|   `-- style.css
-`-- manifest.json
-</code></pre>
-                    </div>
-
-                    <div class="doc-section" id="step2">
-                        <h2>Step 2: The Plugin Manifest</h2>
-                        <p>The <code>manifest.json</code> file describes your plugin to the IDE. Here’s an example:</p>
-                        <pre><code>{
-  "name": "My UI Plugin",
-  "version": "1.0.0",
-  "type": "ui",
-  "entrypoint": "ui/index.html"
-}
-</code></pre>
-                    </div>
-
-                    <div class="doc-section" id="step3">
-                        <h2>Step 3: The UI Code</h2>
-                        <p>Now, you can create the UI for your plugin. This is standard HTML, CSS, and JavaScript.</p>
-                        
-                        <h4>ui/index.html</h4>
-                        <pre><code>&lt;!DOCTYPE html&gt;
-&lt;html&gt;
-&lt;head&gt;
-  &lt;link rel="stylesheet" href="style.css"&gt;
-&lt;/head&gt;
-&lt;body&gt;
-  &lt;h1&gt;Hello from my UI Plugin!&lt;/h1&gt;
-  &lt;script src="script.js"&gt;&lt;/script&gt;
-&lt;/body&gt;
-&lt;/html&gt;
-</code></pre>
-
-                        <h4>ui/style.css</h4>
-                        <pre><code>body {
-  font-family: sans-serif;
-  text-align: center;
-}
-</code></pre>
-
-                        <h4>ui/script.js</h4>
-                        <pre><code>console.log("My UI Plugin has loaded!");
-</code></pre>
-                    </div>
-
-                    <div class="doc-section" id="step4">
-                        <h2>Step 4: Building and Installing</h2>
-                        <p>To see your plugin in the IDE, you need to add it to the IDE's workspace and rebuild.</p>
-                        <p>Instructions on how to build the workspace can be found on the <a href="build.html">Build page</a>.</p>
+                    <div class="doc-section">
+                        <h1>UI Plugin Tutorial moved</h1>
+                        <p>The UI plugin scaffold tutorial now lives under <a href="development.html#plugin-ui">development.html#plugin-ui</a> alongside the core dev steps.</p>
+                        <p>Quick start: scaffold the folder, <code>npm install</code> (optional), start the global Explorer agent in Ploinky with <code>p-cli start explorer 8080</code>, place the plugin in an enabled repo, then restart once for re-scan.</p>
                     </div>
                 </div>
             </div>

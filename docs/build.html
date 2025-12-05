@@ -10,21 +10,23 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <a href="index.html" class="logo">
-                    <div class="logo-icon">🚀</div>
-                    <span>Explorer Agent</span>
-                </a>
+                <div class="header-top">
+                    <a href="index.html" class="logo">
+                        <div class="logo-icon">🚀</div>
+                        <span>Explorer Agent</span>
+                    </a>
+                    <button class="theme-toggle" id="themeToggle">🌙</button>
+                </div>
                 <nav>
                     <ul>
                         <li><a href="index.html">Home</a></li>
                         <li><a href="architecture.html">Architecture</a></li>
-                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
                         <li><a href="build.html" class="active">Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
-                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
                     </ul>
                 </nav>
             </div>
@@ -37,7 +39,9 @@
                 <h3>Build Workflow</h3>
                 <ul>
                     <li><a href="#overview">Overview</a></li>
+                    <li><a href="#setup-run">Prerequisites & run</a></li>
                     <li><a href="#build-from-markdown">Building from Markdown</a></li>
+                    <li><a href="#hot-reload">Hot reload & restarts</a></li>
                     <li><a href="#soplang-agent-interaction">SOPLang Agent Interaction</a></li>
                 </ul>
             </aside>
@@ -45,6 +49,21 @@
                 <div class="doc-section" id="overview">
                     <h1>Building the Workspace</h1>
                     <p>The Achilles IDE workspace can be built to process and synchronize content from various sources, especially Markdown documents, into the IDE's internal document store. This process ensures that your structured documentation, including embedded SOPLang commands and metadata, is correctly represented and actionable within the IDE.</p>
+                </div>
+
+                <div class="doc-section" id="setup-run">
+                    <h2>Prerequisites & local run</h2>
+                    <ul>
+                        <li><strong>Node.js 20+</strong> and <strong>npm</strong> installed; active Ploinky workspace.</li>
+                        <li><strong>Enable repo & agent (global):</strong>
+<pre><code>p-cli enable repo fileExplorer
+p-cli enable agent fileExplorer/explorer global
+</code></pre>
+                        </li>
+                        <li><strong>Start Explorer (global):</strong> run <code>p-cli start explorer 8080</code> (or your port). UI: <code>http://127.0.0.1:8080/explorer/index.html</code>.</li>
+                        <li><strong>Dependencies (optional local):</strong> <code>npm install</code> at repo root (and in <code>explorer/</code> if needed).</li>
+                        <li>Use only Explorer and <code>soplangAgent</code> (for script execution) in the flows described here.</li>
+                    </ul>
                 </div>
 
                 <div class="doc-section" id="build-from-markdown">
@@ -81,6 +100,15 @@ This paragraph might have embedded commands.
                             <strong>Finalization:</strong> After processing all Markdown files, <code>workspace.forceSave()</code> persists any changes, and <code>workspace.buildAll()</code> triggers a comprehensive build of the entire workspace, integrating all updates.
                         </li>
                     </ol>
+                </div>
+
+                <div class="doc-section" id="hot-reload">
+                    <h2>Hot reload & restarts</h2>
+                    <ul>
+                        <li>Static assets are served by the Explorer backend; most UI tweaks appear after a browser refresh.</li>
+                        <li>Changes to plugin <code>config.json</code> or newly added plugins require restarting the Explorer service so discovery can re-run.</li>
+                        <li>SOPLang comment changes in Markdown are picked up on reload/hydration; re-run <code>buildFromMarkdown</code> if you want to persist updated structure back to the store.</li>
+                    </ul>
                 </div>
 
                 <div class="doc-section" id="soplang-agent-interaction">

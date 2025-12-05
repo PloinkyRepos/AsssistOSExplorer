@@ -10,20 +10,24 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <a href="index.html" class="logo">
-                    <div class="logo-icon">🚀</div>
-                    <span>Ploinky Explorer</span>
-                </a>
+                <div class="header-top">
+                    <a href="index.html" class="logo">
+                        <div class="logo-icon">🚀</div>
+                        <span>Ploinky Explorer</span>
+                    </a>
+                    <button class="theme-toggle" id="themeToggle">🌙</button>
+                </div>
                 <nav>
                     <ul>
                         <li><a href="index.html">Home</a></li>
                         <li><a href="architecture.html">Architecture</a></li>
+                        <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
-                        <li><a href="tutorial-ui-plugin.html">UI Plugin Tutorial</a></li>
-                        <li><a href="screenshots.html">Screenshots</a></li>
-                        <li><a href="soplang.html" class="active">SOPLang</a></li>
+                        <li><a href="mcp-tools.html">MCP Tools</a></li>
                         <li><a href="build.html">Build</a></li>
-                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
+                        <li><a href="screenshots.html">Screenshots</a></li>
+                        <li><a href="development.html">Development</a></li>
+                        <li><a href="soplang.html" class="active">SOPLang</a></li>
                     </ul>
                 </nav>
             </div>
@@ -37,16 +41,19 @@
                     <h3>SOPLang</h3>
                     <ul>
                         <li><a href="#embedding">Embedding</a></li>
+                        <li><a href="#achilles-comments">Achilles comments</a></li>
+                        <li><a href="#variables-media">Variables & media</a></li>
                         <li><a href="#execution">Execution</a></li>
+                        <li><a href="#ide-flow">How it fits with Documents/Build</a></li>
                     </ul>
                 </aside>
 
                 <div class="content-wrapper">
                     <div class="doc-section" id="embedding">
                         <h1>SOPLang in Markdown</h1>
-                        <p>SOPLang (Standard Operating Procedure Language) can be embedded directly into Markdown files, allowing you to create rich, executable documentation.</p>
-                        <p>To embed a SOPLang script, you can use a fenced code block with the <code>soplang</code> language identifier:</p>
-                        <pre><code>```soplang
+                        <p>SOPLang (Standard Operating Procedure Language) can be embedded directly into Markdown files to create rich, executable documentation.</p>
+                        <p>Use a fenced code block with the <code>soplang</code> language identifier:</p>
+<pre><code>```soplang
 # This is a SOPLang script
 agent "MyAgent" do
   action "do_something"
@@ -54,10 +61,51 @@ end
 ```</code></pre>
                     </div>
 
+                    <div class="doc-section" id="achilles-comments">
+                        <h2>Achilles comment blocks</h2>
+                        <p>The build pipeline and document hydrator read special HTML comments embedded in Markdown to map content to the document model. Common markers:</p>
+<pre><code>&lt;!--{"achiles-ide-document": {"id": "doc-1", "title": "My Doc"}}--&gt;
+&lt;!--{"achiles-ide-chapter": {"title": "Intro", "commands": "@set title \"Intro\""}}--&gt;
+&lt;!--{"achiles-ide-paragraph": {"title": "P1", "commands": "@media_image_123 attach id \"blob-id\""}}--&gt;</code></pre>
+                        <ul>
+                            <li><strong>Document</strong> comments set ids/titles and high-level metadata.</li>
+                            <li><strong>Chapter</strong> comments set headings and commands before a heading.</li>
+                            <li><strong>Paragraph</strong> comments sit above the paragraph text and carry commands/metadata.</li>
+                        </ul>
+                        <p>These markers are preserved on save so SOPLang and the hydrator stay in sync.</p>
+                    </div>
+
+                    <div class="doc-section" id="variables-media">
+                        <h2>Variables and media attachments</h2>
+                        <p>Inside comment blocks or SOPLang code you can define variables and attach blobs:</p>
+<pre><code>@set doc_owner "alice@company.com"
+@media_image_123 attach id "abcd1234" name "diagram.png"
+@media_audio_bg attach id "efgh5678" name "bg-music.mp3"</code></pre>
+                        <ul>
+                            <li>Variables become part of the hydrated document model and are exposed in the Variables panel.</li>
+                            <li>Attachments store blob IDs only; URLs are built at runtime (see <code>blobUrl</code> utils).</li>
+                            <li>Commands are serialized back into the Markdown so reruns of the build keep media and state aligned.</li>
+                        </ul>
+                    </div>
+
                     <div class="doc-section" id="execution">
-                        <h2>Execution</h2>
-                        <p>When you open a Markdown file containing a SOPLang script in the Achilles IDE, you can execute it using the <code>@soplangAgent</code>.</p>
-                        <p>The agent will parse the script and execute the defined procedures. The output of the execution will be displayed in the IDE's output panel.</p>
+                        <h2>Execution from the UI</h2>
+                        <p>When a Markdown file containing SOPLang is opened, the IDE exposes run controls via the SOPLang agent.</p>
+                        <ul>
+                            <li>Use the SOPLang actions in the document toolbar to execute the current block.</li>
+                            <li>Output appears in the IDE console; variable updates propagate into the document model.</li>
+                            <li>If you add new comment blocks or commands, refresh/reload to re-hydrate the model.</li>
+                        </ul>
+                    </div>
+
+                    <div class="doc-section" id="ide-flow">
+                        <h2>How it fits with Documents & Build</h2>
+                        <p>SOPLang is part of the full content flow:</p>
+                        <ul>
+                            <li><strong>documents.html</strong> explains how the hydrator turns Markdown + comments into chapters/paragraphs.</li>
+                            <li><strong>build.html</strong> covers the <code>buildFromMarkdown</code> pipeline that scans for <code>achiles-ide-*</code> comments and persists structured data.</li>
+                            <li>During hydration, SOPLang commands live in the <code>commands</code> fields; plugins and the SOPLang agent read/write them to keep the Markdown authoritative.</li>
+                        </ul>
                     </div>
                 </div>
             </div>

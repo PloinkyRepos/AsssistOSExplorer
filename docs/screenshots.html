@@ -31,15 +31,19 @@
             color: var(--text-secondary);
             font-size: 0.9rem;
         }
+        .thumbnail-list-wrapper {
+            position: relative;
+            padding: 0 2.5rem; /* Space for arrows */
+            background-color: var(--bg-secondary);
+            border-top: 1px solid var(--border-primary);
+        }
         .thumbnail-list {
             display: grid;
             grid-auto-flow: column; /* Arrange items in columns, allowing them to overflow horizontally */
-            grid-auto-columns: min-content; /* Each column takes minimum content width */
+            grid-auto-columns: 130px; /* Each column takes minimum content width, fixed to thumbnail size */
             gap: 0.5rem;
             overflow-x: auto; /* Enable horizontal scrolling */
-            padding: 1rem;
-            background-color: var(--bg-secondary);
-            border-top: 1px solid var(--border-primary);
+            padding: 1rem 0;
             -webkit-overflow-scrolling: touch; /* Smooth scrolling on iOS */
             scrollbar-width: thin; /* Firefox */
             scrollbar-color: var(--text-secondary) var(--bg-secondary); /* Firefox */
@@ -55,6 +59,32 @@
             background-color: var(--text-secondary);
             border-radius: 4px;
             border: 2px solid var(--bg-secondary);
+        }
+        .scroll-arrow {
+            position: absolute;
+            top: 50%;
+            transform: translateY(-50%);
+            background-color: rgba(0, 0, 0, 0.3);
+            color: white;
+            border: none;
+            border-radius: 50%;
+            width: 40px;
+            height: 40px;
+            font-size: 1.5rem;
+            line-height: 40px;
+            text-align: center;
+            cursor: pointer;
+            z-index: 10;
+            transition: background-color 0.3s ease;
+        }
+        .scroll-arrow:hover {
+            background-color: rgba(0, 0, 0, 0.7);
+        }
+        .scroll-left {
+            left: 0px;
+        }
+        .scroll-right {
+            right: 0px;
         }
         .thumbnail {
             width: 130px;
@@ -132,15 +162,15 @@
                     <ul>
                         <li><a href="index.html">Home</a></li>
                         <li><a href="architecture.html">Architecture</a></li>
-                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
                         <li><a href="build.html">Build</a></li>
                         <li><a href="screenshots.html" class="active">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
-                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
                     </ul>
                 </nav>
+                <button class="theme-toggle" id="themeToggle">🌙</button>
             </div>
         </div>
     </header>
@@ -155,52 +185,47 @@
                     <div class="screenshot-card">
                         <h3>Main Interface</h3>
                         <p>An overview of the primary user interface, showing the document editor and navigation panels.</p>
-                        <div class="thumbnail-list">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Main+IDE+Window+(View+1)" alt="Main IDE Window - View 1">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=2" data-img-src="https://via.placeholder.com/1200x800?text=Main+IDE+Window+(View+2)" alt="Main IDE Window - View 2">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=3" data-img-src="https://via.placeholder.com/1200x800?text=Main+IDE+Window+(View+3)" alt="Main IDE Window - View 3">
+                        <div class="thumbnail-list-wrapper">
+                            <button class="scroll-arrow scroll-left">‹</button>
+                            <div class="thumbnail-list">
+                                <img class="thumbnail" src="./assets/preview_md.png" data-img-src="./assets/preview_md.png" alt="Main IDE Window - Markdown Preview">
+                                <img class="thumbnail" src="./assets/preview_md_txt.png" data-img-src="./assets/preview_md_txt.png" alt="Main IDE Window - Markdown and Text">
+                                <img class="thumbnail" src="./assets/preview_code.png" data-img-src="./assets/preview_code.png" alt="Main IDE Window - Code Preview">
+                                <!-- Add more thumbnails as needed -->
+                            </div>
+                            <button class="scroll-arrow scroll-right">›</button>
                         </div>
                     </div>
 
                     <div class="screenshot-card">
                         <h3>Document Editing</h3>
-                        <p>Demonstrates the rich Markdown editing experience with embedded SOPLang commands.</p>
-                        <div class="thumbnail-list">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Markdown+Editor" alt="Markdown Editor">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=2" data-img-src="https://via.placeholder.com/1200x800?text=Embedded+SOPLang" alt="Embedded SOPLang">
-                        </div>
-                    </div>
-
-                    <div class="screenshot-card">
-                        <h3>Plugin Integration</h3>
-                        <p>Shows how context-aware plugins are integrated into the UI and interact with documents.</p>
-                         <div class="thumbnail-list">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Plugin+Toolbar" alt="Plugin Toolbar">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=2" data-img-src="https://via.placeholder.com/1200x800?text=Plugin+Modal" alt="Plugin Modal">
-                        </div>
-                    </div>
-
-                    <div class="screenshot-card">
-                        <h3>File System Navigation</h3>
-                        <p>Visualizes the secure file system navigation and management capabilities.</p>
-                         <div class="thumbnail-list">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=File+Tree" alt="File Tree">
+                        <p>Demonstrates the rich Markdown editing experience with embedded SOPLang commands and editing of other file types.</p>
+                        <div class="thumbnail-list-wrapper">
+                            <button class="scroll-arrow scroll-left">‹</button>
+                            <div class="thumbnail-list">
+                                <img class="thumbnail" src="./assets/edit_md_add_item.png" data-img-src="./assets/edit_md_add_item.png" alt="Document Editing - Add Item">
+                                <img class="thumbnail" src="./assets/edit_md_c.png" data-img-src="./assets/edit_md_c.png" alt="Document Editing - Chapter Edit">
+                                <img class="thumbnail" src="./assets/edit_md_p.png" data-img-src="./assets/edit_md_p.png" alt="Document Editing - Paragraph Edit">
+                                <img class="thumbnail" src="./assets/edit_js.png" data-img-src="./assets/edit_js.png" alt="Document Editing - JavaScript File">
+                                <img class="thumbnail" src="./assets/edit_txt.png" data-img-src="./assets/edit_txt.png" alt="Document Editing - Plain Text File">
+                                <!-- Add more thumbnails as needed -->
+                            </div>
+                            <button class="scroll-arrow scroll-right">›</button>
                         </div>
                     </div>
 
                     <div class="screenshot-card">
                         <h3>SOPLang Execution</h3>
-                        <p>Illustrates the execution of SOPLang scripts and the display of their results.</p>
-                         <div class="thumbnail-list">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=SOPLang+Console" alt="SOPLang Console">
-                        </div>
-                    </div>
-
-                    <div class="screenshot-card">
-                        <h3>Blob Storage Management</h3>
-                        <p>Displays the interface for managing and previewing uploaded media via the blob service.</p>
-                         <div class="thumbnail-list">
-                            <img class="thumbnail" src="https://via.placeholder.com/30x30?text=1" data-img-src="https://via.placeholder.com/1200x800?text=Media+Gallery" alt="Media Gallery">
+                        <p>Illustrates the execution of SOPLang scripts and the display of their results, including variable management.</p>
+                        <div class="thumbnail-list-wrapper">
+                            <button class="scroll-arrow scroll-left">‹</button>
+                            <div class="thumbnail-list">
+                                <img class="thumbnail" src="./assets/soplang_no_vars.png" data-img-src="./assets/soplang_no_vars.png" alt="SOPLang Execution - No Variables">
+                                <img class="thumbnail" src="./assets/soplang_variables.png" data-img-src="./assets/soplang_variables.png" alt="SOPLang Execution - Variables List">
+                                <img class="thumbnail" src="./assets/soplang_var_details.png" data-img-src="./assets/soplang_var_details.png" alt="SOPLang Execution - Variable Details">
+                                <!-- Add more thumbnails as needed -->
+                            </div>
+                            <button class="scroll-arrow scroll-right">›</button>
                         </div>
                     </div>
                 </div>
@@ -273,6 +298,29 @@
             if (event.target === lightbox) {
                 lightbox.style.display = 'none';
             }
+        });
+
+        // Thumbnail list scrolling functionality
+        document.querySelectorAll('.thumbnail-list-wrapper').forEach(wrapper => {
+            const scrollLeftBtn = wrapper.querySelector('.scroll-left');
+            const scrollRightBtn = wrapper.querySelector('.scroll-right');
+            const thumbnailList = wrapper.querySelector('.thumbnail-list');
+
+            const scrollAmount = 140; // Thumbnail width (130px) + gap (10px approx)
+
+            scrollLeftBtn.addEventListener('click', () => {
+                thumbnailList.scrollBy({
+                    left: -scrollAmount,
+                    behavior: 'smooth'
+                });
+            });
+
+            scrollRightBtn.addEventListener('click', () => {
+                thumbnailList.scrollBy({
+                    left: scrollAmount,
+                    behavior: 'smooth'
+                });
+            });
         });
     </script>
 </body>

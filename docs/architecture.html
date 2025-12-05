@@ -10,21 +10,23 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <a href="index.html" class="logo">
-                    <div class="logo-icon">🚀</div>
-                    <span>Explorer Agent</span>
-                </a>
+                <div class="header-top">
+                    <a href="index.html" class="logo">
+                        <div class="logo-icon">🚀</div>
+                        <span>Explorer Agent</span>
+                    </a>
+                    <button class="theme-toggle" id="themeToggle">🌙</button>
+                </div>
                 <nav>
                     <ul>
                         <li><a href="index.html">Home</a></li>
                         <li><a href="architecture.html" class="active">Architecture</a></li>
-                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
                         <li><a href="build.html">Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
-                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
                     </ul>
                 </nav>
             </div>
@@ -47,7 +49,7 @@
                     <p>This section provides a detailed look at the technical architecture of the Explorer agent, from the containerized runtime to the frontend application.</p>
 
                     <h2>Runtime and Routing</h2>
-                    <p>The Explorer agent's container configuration is defined in <code>manifest.json</code>. This file specifies how the container runs, including mounting the workspace and the agent library. The main Ploinky router (configured in <code>.ploinky/routing.json</code>) maps the <code>explorer</code> agent to a specific port on the host machine (e.g., 8082). The UI is accessed through this port.</p>
+                    <p>The Explorer agent's container configuration is defined in <code>manifest.json</code>. This file specifies how the container runs, including mounting the workspace and the agent library. The UI is served directly by Explorer on the configured host port (commonly <code>8080</code>); point your browser to that port to load the app.</p>
                 </div>
 
                 <div class="doc-section" id="backend">

@@ -395,6 +395,8 @@ class DocumentStore {
 export {
     DocumentStore as default,
     hydrateDocumentModel,
+    hydrateChapterModel,
+    hydrateParagraphModel,
     serializeDocumentModel,
     syncDocumentMetadata,
     createCommentDefaults,

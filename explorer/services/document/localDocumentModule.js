@@ -1,5 +1,7 @@
 import DocumentStore, {
     hydrateDocumentModel,
+    hydrateChapterModel,
+    hydrateParagraphModel,
     serializeDocumentModel,
     syncDocumentMetadata,
     Chapter

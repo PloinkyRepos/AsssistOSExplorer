@@ -10,21 +10,23 @@
     <header>
         <div class="container">
             <div class="header-content">
-                <a href="index.html" class="logo">
-                    <div class="logo-icon">🚀</div>
-                    <span>Explorer Agent</span>
-                </a>
+                <div class="header-top">
+                    <a href="index.html" class="logo">
+                        <div class="logo-icon">🚀</div>
+                        <span>Explorer Agent</span>
+                    </a>
+                    <button class="theme-toggle" id="themeToggle">🌙</button>
+                </div>
                 <nav>
                     <ul>
                         <li><a href="index.html">Home</a></li>
                         <li><a href="architecture.html">Architecture</a></li>
-                        <li><a href="documents.html">Documents</a></li>
+                        <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
                         <li><a href="build.html">Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html" class="active">Development</a></li>
-                        <li><button class="theme-toggle" id="themeToggle">🌙</button></li>
                     </ul>
                 </nav>
             </div>
@@ -36,18 +38,39 @@
             <aside class="sidebar">
                 <h3>Development</h3>
                 <ul>
+                    <li><a href="#setup">Setup & run</a></li>
                     <li><a href="#tips">Development Tips</a></li>
                     <li><a href="#cheatsheet">Repo Layout</a></li>
+                    <li><a href="#plugin-uppercase">Plugin tutorial: Uppercase paragraph</a></li>
+                    <li><a href="#plugin-ui">Plugin tutorial: UI scaffold</a></li>
                 </ul>
             </aside>
             <div class="content-wrapper">
-                <div class="doc-section" id="tips">
-                    <h1>Development Tips</h1>
+                <div class="doc-section" id="setup">
+                    <h1>Local setup & run</h1>
                     <ul>
-                        <li><strong>Restart on Change:</strong> You must restart the Explorer agent after adding, removing, or modifying a plugin's <code>config.json</code> to force the server to rebuild its plugin catalog.</li>
+                        <li><strong>Prereqs:</strong> Node.js 20+, npm, and a running Ploinky workspace.</li>
+                        <li><strong>Enable repo & agent (global):</strong> From the Ploinky workspace root run:
+<pre><code>p-cli enable repo fileExplorer
+p-cli enable agent fileExplorer/explorer global
+</code></pre>
+                        </li>
+                        <li><strong>Start Explorer:</strong> Start the agent on your chosen port (e.g. 8080):
+<pre><code>p-cli start explorer 8080</code></pre>
+                        UI is available at <code>http://127.0.0.1:8080/explorer/index.html</code>.</li>
+                        <li><strong>Dependencies (optional local):</strong> If you want to run npm scripts from the checkout, run <code>npm install</code> at repo root (and in <code>explorer/</code> if dependencies live there).</li>
+                        <li><strong>Hot reload:</strong> UI/JS/CSS refresh in the browser; changes to plugin <code>config.json</code> or new plugins require restarting the Explorer service so discovery reruns.</li>
+                        <li><strong>More context:</strong> See <a href="build.html">build.html</a> for pipeline details.</li>
+                    </ul>
+                </div>
+
+                <div class="doc-section" id="tips">
+                    <h2>Development Tips</h2>
+                    <ul>
+                        <li><strong>Restart on Change:</strong> Restart the Explorer agent after adding, removing, or modifying a plugin's <code>config.json</code> so the catalog is rebuilt.</li>
                         <li><strong>Use Blob IDs:</strong> Store blob IDs, not full URLs, in document commands or plugin state. URLs can change and should be constructed on-demand using helpers like <code>blobUrl.buildBlobUrl</code>.</li>
-                        <li><strong>Use the Document Module:</strong> When modifying document content from a plugin, always use the <code>assistOS.loadModule("document")</code> functions to ensure data consistency and proper UI updates.</li>
-                        <li><strong>Media Formats:</strong> For plugins involving media processing (e.g., with ffmpeg), prefer standard formats like PNG, JPG, MP4, and MP3. SVG is often not supported in these pipelines.</li>
+                        <li><strong>Use the Document Module:</strong> Modify document content via <code>assistOS.loadModule("document")</code> (e.g., <code>updateParagraph</code>) to keep metadata and UI in sync.</li>
+                        <li><strong>Media Formats:</strong> For plugins involving media processing (e.g., with ffmpeg), prefer standard formats like PNG, JPG, MP4, and MP3. SVG is often not supported in those pipelines.</li>
                     </ul>
                 </div>
 
@@ -63,6 +86,113 @@
 ├─ services/                    # Frontend services, including document parsing
 └─ utils/                       # Shared utilities for the frontend
 </code></pre>
+                </div>
+
+                <div class="doc-section" id="plugin-uppercase">
+                    <h2>Plugin tutorial: Uppercase paragraph</h2>
+                    <p>A minimal WebSkel plugin that uppercases the current paragraph. Attach it to paragraphs via <code>location</code>.</p>
+                    <h3>1) Folder</h3>
+<pre><code>IDE-plugins/
+  └── uppercase/
+</code></pre>
+                    <h3>2) <code>config.json</code></h3>
+<pre><code>{
+  "component": "uppercase-plugin",
+  "presenter": "UppercasePlugin",
+  "type": "modal",
+  "location": ["paragraph"],
+  "tooltip": "Uppercase paragraph",
+  "icon": "./icon.svg"
+}</code></pre>
+                    <h3>3) Template (<code>uppercase-plugin.html</code>)</h3>
+<pre><code>&lt;div class="modal-header"&gt;
+  &lt;div&gt;Uppercase Paragraph&lt;/div&gt;
+  &lt;div class="close" data-local-action="closeModal"&gt;&times;&lt;/div&gt;
+&lt;/div&gt;
+&lt;div class="modal-body"&gt;
+  &lt;p&gt;This will convert the paragraph: &lt;strong&gt;${this.paragraph.text}&lt;/strong&gt;&lt;/p&gt;
+  &lt;button class="general-button" data-local-action="apply"&gt;Apply&lt;/button&gt;
+&lt;/div&gt;
+</code></pre>
+                    <h3>4) Presenter (<code>uppercase-plugin.js</code>)</h3>
+<pre><code>import { getContextualElement } from "../utils/pluginUtils.js";
+const documentModule = assistOS.loadModule("document");
+
+export class UppercasePlugin {
+  constructor(element, invalidate) {
+    this.element = element;
+    this.invalidate = invalidate;
+    this.invalidate();
+  }
+
+  beforeRender() {
+    const { chapter, paragraph } = getContextualElement(this.element);
+    this.chapter = chapter;
+    this.paragraph = paragraph;
+  }
+
+  afterRender() {
+    const button = this.element.querySelector('[data-local-action="apply"]');
+    button.addEventListener("click", this.apply.bind(this));
+  }
+
+  async apply() {
+    const text = this.paragraph?.text || "";
+    await documentModule.updateParagraph(
+      assistOS.space.id,
+      this.chapter.id,
+      this.paragraph.id,
+      text.toUpperCase()
+    );
+    assistOS.UI.showToast("Paragraph updated!", "success");
+    this.closeModal();
+  }
+
+  closeModal() {
+    assistOS.UI.closeModal(this.element);
+  }
+}</code></pre>
+                    <p><strong>5) Restart discovery:</strong> restart the Explorer agent after adding the plugin so the catalog refreshes. See <a href="build.html">build</a> for the pipeline.</p>
+                </div>
+
+                <div class="doc-section" id="plugin-ui">
+                    <h2>Plugin tutorial: UI scaffold</h2>
+                    <p>A lightweight UI-only plugin scaffold (no contextual WebSkel bindings). Useful for standalone modals/tools.</p>
+                    <h3>1) Structure</h3>
+<pre><code>/my-ui-plugin
+|-- /ui
+|   |-- index.html
+|   |-- script.js
+|   `-- style.css
+`-- manifest.json
+</code></pre>
+                    <h3>2) <code>manifest.json</code></h3>
+<pre><code>{
+  "name": "My UI Plugin",
+  "version": "1.0.0",
+  "type": "ui",
+  "entrypoint": "ui/index.html"
+}</code></pre>
+                    <h3>3) UI files</h3>
+<pre><code>&lt;!-- ui/index.html --&gt;
+&lt;!DOCTYPE html&gt;
+&lt;html&gt;
+&lt;head&gt;
+  &lt;link rel="stylesheet" href="style.css"&gt;
+&lt;/head&gt;
+&lt;body&gt;
+  &lt;h1&gt;Hello from my UI Plugin!&lt;/h1&gt;
+  &lt;script src="script.js"&gt;&lt;/script&gt;
+&lt;/body&gt;
+&lt;/html&gt;
+
+/* ui/style.css */
+body { font-family: sans-serif; text-align: center; }
+
+// ui/script.js
+console.log("My UI Plugin has loaded!");
+</code></pre>
+                    <p><strong>4) Run & rebuild:</strong> Install deps (<code>npm install</code>) and start the Explorer service (<code>npm run start</code> or your local start command). Add the plugin to an enabled repo and restart once to refresh the catalog.</p>
                 </div>
             </div>
         </div>
