@@ -24,7 +24,7 @@
                         <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
-                        <li><a href="build.html">Build</a></li>
+                        <li><a href="build.html">SOPLang Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
                     </ul>
@@ -37,7 +37,7 @@
         <div class="container">
             <div class="hero" style="padding-bottom: 2rem;">
                 <h1>Explorer Agent</h1>
-                <p class="subtitle">The Explorer agent serves as the foundational skeleton for the Achilles IDE, an environment for developing AI agent-based automation and research solutions. <br>Learn more about the <a href="https://www.achilles-project.eu/the-project/" target="_blank" rel="noopener noreferrer">Achilles project</a>.</p>
+                <p class="subtitle">The Explorer agent is the backbone UI and filesystem host of the Achilles IDE, the European project building AI-driven automation and research tooling for science/industry. <br> It brings together structured documents, MCP filesystem tools, and extensible plugins in a single workspace. <br>Learn more about the <a href="https://www.achilles-project.eu/the-project/" target="_blank" rel="noopener noreferrer">Achilles project</a>.</p>
             </div>
 
             <div class="content-wrapper">
@@ -72,9 +72,9 @@
                         </div>
                         <div class="feature-card">
                             <div class="feature-icon">🏗️</div>
-                            <h3>Build Workspace</h3>
+                            <h3>SOPLang Build</h3>
                             <p>Understand the workspace build process, from Markdown parsing to document store synchronization.</p>
-                            <a href="build.html" class="btn btn-secondary">Learn More</a>
+                            <a href="build.html" class="btn btn-secondary">View SOPLang Build guide</a>
                         </div>
                         <div class="feature-card">
                             <div class="feature-icon">🖼️</div>
@@ -88,18 +88,9 @@
                 <div class="doc-section">
                     <h2>High-Level Flow</h2>
                     <p>The following diagram illustrates the high-level data flow of the Explorer agent:</p>
-                    <pre><code>User Browser (Web UI built on WebSkel)
-    |
-    | HTTP (Served by the Explorer container)
-    v
-Explorer Backend (filesystem-http-server.mjs)
-    - Serves the static UI (HTML, JS, CSS)
-    - Exposes MCP filesystem tools for other agents
-    - Handles file uploads via the /blobs endpoint
-    - Discovers plugins and serves their manifests to the UI
-    |
-    v
-Workspace Filesystem (Mounted into the container)</code></pre>
+                    <div class="architecture-diagram">
+                        <img src="assets/architecture-diagram.svg" alt="Explorer high-level flow diagram">
+                    </div>
                 </div>
             </div>
         </div>

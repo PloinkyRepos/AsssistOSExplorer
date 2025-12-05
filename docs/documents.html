@@ -24,7 +24,7 @@
                         <li><a href="documents.html" class="active">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
-                        <li><a href="build.html">Build</a></li>
+                        <li><a href="build.html">SOPLang Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
                     </ul>
@@ -52,22 +52,25 @@
             <div class="content-wrapper">
                 <div class="doc-section" id="overview">
                     <h1>Managing and Editing .md Documents</h1>
-                    <p>A core feature of the Explorer agent is its specialized handling of Markdown (<code>.md</code>) files. Instead of treating them as plain text, Explorer parses them into a structured <strong>Document Object Model</strong> (DOM), turning them into interactive, extensible documents with a rich set of features.</p>
+                    <p>A core feature of the Explorer agent is its specialized handling of Markdown (<code>.md</code>) files. Instead of treating them as plain text, Explorer parses them into a structured <strong>Document Object Model</strong> (DOM), turning them into interactive, extensible documents with a rich set of features. Any file, however, can be opened in view or edit mode: Markdown gets the structured document experience; all other text/code files use the general editor.</p>
                 </div>
 
                 <div class="doc-section" id="data-model">
                     <h2>The Document Data Model</h2>
                     <p>When a Markdown file is loaded, it is transformed into a rich, in-memory representation. This process, known as <strong>hydration</strong>, is handled by the <code>DocumentStore</code> service. The <code>hydrateDocumentModel</code> function enriches the document with metadata, comments, references, and other structured data, creating a hierarchical model that the UI components can interact with.</p>
+                    <p><strong>Example:</strong> A file with <code>&lt;!--{"achiles-ide-document": {"id": "guide", "title": "My Guide"}}--&gt;</code> and chapter/paragraph comments is hydrated into a document with <code>docId = "guide"</code>, chapters built from comments or headings, and paragraph records carrying <code>text</code> and <code>commands</code>.</p>
                 </div>
 
                 <div class="doc-section" id="persistence">
                     <h2>Data Persistence via Soplang Commands</h2>
                     <p>A key architectural concept is that <strong><code>.md</code> files are a persistence layer for structured data.</strong> This is achieved by embedding <code>soplang</code> commands directly within the text, which are parsed during hydration and preserved during serialization.</p>
+                    <p><strong>Example:</strong> <code>@media_image_123 attach id "blob-id" name "hero.png"</code> embedded in a paragraph is kept verbatim in the file; the parser extracts it so the UI can render the image while the command stays in the Markdown.</p>
                 </div>
                 
                 <div class="doc-section" id="doc-info">
                     <h2>Document Info</h2>
                     <p>Each document contains a set of metadata that provides essential information about it. This includes the document's <strong>Title</strong> and a summary or abstract in the <strong>Info Text</strong> field. This data is managed within the document's metadata and can be edited through the UI to provide context for the document's content.</p>
+                    <p><strong>Example:</strong> In the info pane, set <em>Title</em> to "Release Notes" and <em>Info Text</em> to "Changelog for v1.2"; these values are saved back into the document metadata.</p>
                 </div>
 
                 <div class="doc-section" id="toc">
@@ -78,6 +81,7 @@
                         <li>Each chapter's <code>headingText</code> and <code>headingLevel</code> are used to create a hierarchical and interactive outline.</li>
                         <li>Clicking an item in the Table of Contents will scroll the corresponding chapter into view.</li>
                     </ul>
+                    <p><strong>Example:</strong> Chapters declared via comments (or headings) appear in the left TOC; selecting "Deployment" scrolls to that chapter in the document view.</p>
                 </div>
                 
                 <div class="doc-section" id="comments">
@@ -87,6 +91,7 @@
                         <li>Comments are stored in the <code>comments</code> array within the metadata of the corresponding document, chapter, or paragraph.</li>
                         <li>This feature enables collaborative review and discussion directly within the context of the document.</li>
                     </ul>
+                    <p><strong>Example:</strong> Add a paragraph-level comment like "Clarify API version" on the introduction; it is stored with that paragraph and shown inline in the comments panel.</p>
                 </div>
 
                 <div class="doc-section" id="references">
@@ -96,6 +101,7 @@
                         <li>References are stored in a <code>references</code> array within the document's metadata.</li>
                         <li>This allows for centralized management of all sources cited within a document, making it ideal for research and technical papers.</li>
                     </ul>
+                    <p><strong>Example:</strong> Add a reference with title "RFC 9110" and URL "https://www.rfc-editor.org/rfc/rfc9110"; it appears in the references table and can be cited across the document.</p>
                 </div>
                 
                 <div class="doc-section" id="advanced-features">
@@ -106,6 +112,7 @@
                         <li><strong>Tasks:</strong> The <code>tasks</code> property allows for the creation and management of to-do items or other tasks associated with a document, managed through the <code>document-tasks-modal</code>.</li>
                         <li><strong>Variables:</strong> The <code>variables</code> property provides a way to define and manage dynamic data within a document, which can be used by SOPLang scripts and other automations. The <code>document-variable-details</code> component is used to interact with these variables.</li>
                     </ul>
+                    <p><strong>Example:</strong> Capture a snapshot before major edits, add a task "Update diagrams" in the tasks modal, and define a variable <code>releaseVersion=1.2.0</code> for SOPLang-driven templates.</p>
                 </div>
 
                 <div class="doc-section" id="other-files">
@@ -118,6 +125,7 @@
                         <li>Code files (<code>.js</code>, <code>.html</code>, <code>.css</code>, <code>.py</code>, etc.)</li>
                         <li>Configuration files (<code>.json</code>, <code>.xml</code>, <code>.yml</code>, etc.)</li>
                     </ul>
+                    <p><strong>Example:</strong> Open <code>config/app.json</code> to view or edit JSON; open <code>src/main.js</code> to edit code with syntax highlighting; both use the general editor (no document DOM).</p>
 
                     <h3>The Key Difference: Plain Text vs. Structured Data</h3>
                     <p>The most important distinction is how these files are treated compared to Markdown (<code>.md</code>) files:</p>

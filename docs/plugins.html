@@ -24,7 +24,7 @@
                         <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html" class="active">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
-                        <li><a href="build.html">Build</a></li>
+                        <li><a href="build.html">SOPLang Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
                     </ul>
@@ -46,7 +46,7 @@
             <div class="content-wrapper">
                 <div class="doc-section" id="discovery">
                     <h1>The Plugin System</h1>
-                    <p>The <code>aggregateIdePlugins</code> function in <code>filesystem-http-server.mjs</code> is responsible for discovering plugins. At server startup, it scans all enabled repositories for <code>IDE-plugins/*/config.json</code> files. These manifests are then merged into a single plugin catalog, grouped by their specified <code>location</code>, and sent to the client.</p>
+                    <p>The <code>aggregateIdePlugins</code> function in <code>filesystem-http-server.mjs</code> discovers plugins when the <code>collect_ide_plugins</code> MCP tool is called (e.g., by the UI on load). Each invocation scans enabled repositories for <code>IDE-plugins/*/config.json</code> files, then merges the manifests into a plugin catalog grouped by <code>location</code> and returns it to the client.</p>
                 </div>
 
                 <div class="doc-section" id="manifest">

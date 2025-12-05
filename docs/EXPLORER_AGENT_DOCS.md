@@ -1,226 +1,151 @@
-# Explorer Agent – Detailed Guide
+# Explorer Agent – Comprehensive Guide
 
-This document explains how the **Explorer** agent works end‑to‑end: its runtime environment, backend and frontend architecture, MCP tools, blob storage, and the plugin system. It provides a comprehensive overview for developers looking to understand, extend, or interact with the Explorer agent.
-
----
-
-## 1. What the Explorer Is
-
-The Explorer is a multi-faceted agent that serves as the primary user interface and file management hub within the Ploinky workspace.
-
--   **A Containerised Agent**: It runs as a containerized Node.js application that serves a web-based UI and exposes a set of secure filesystem MCP (Model Context Protocol) tools.
--   **A Plugin Host**: It features a powerful plugin system. Any `IDE-plugins` directory found in enabled repositories is scanned at startup. The discovered plugins are then made available contextually (at the document, chapter, or paragraph level) within the UI.
--   **A Blob Service**: It includes a blob storage service for handling file uploads. The service is available at the `/blobs/:agentId` endpoint, storing files in a `blobs/` directory using content-addressable IDs for efficient storage and retrieval.
--   **A Document Manager**: It has specialized functionality for parsing and interacting with Markdown (`.md`) files, treating them as structured documents composed of chapters and paragraphs.
-
-**High-Level Flow:**
-
-```
-User Browser (Web UI built on WebSkel)
-    |
-    | HTTP (Served by the Explorer container)
-    v
-Explorer Backend (filesystem-http-server.mjs)
-    - Serves the static UI (HTML, JS, CSS)
-    - Exposes MCP filesystem tools for other agents
-    - Handles file uploads via the /blobs endpoint
-    - Discovers plugins and serves their manifests to the UI
-    |
-    v
-Workspace Filesystem (Mounted into the container)
-```
+This guide consolidates all Explorer documentation (architecture, document model, plugins, MCP tools, SOPLang integration, build pipeline, and development setup) in one place.
 
 ---
 
-## 2. Runtime and Routing
+## 1) What Explorer Is
 
--   **Runtime**: The Explorer agent's container configuration is defined in `manifest.json`. This file specifies how the container runs, including mounting the workspace and the agent library.
--   **Routing**: The main Ploinky router (configured in `.ploinky/routing.json`) maps the `explorer` agent to a specific port on the host machine (e.g., 8082). The UI is accessed through this port.
--   **Inter-Agent Communication**: Other agents running in the same environment can communicate with the Explorer agent using its service name and the router port. For blob access, the URL format is typically `http://host.docker.internal:${PLOINKY_ROUTER_PORT || 8080}/blobs/explorer/<blobId>`.
-
----
-
-## 3. Backend (`filesystem-http-server.mjs`)
-
-The backend is a Node.js server with several key responsibilities:
-
--   **Static File Server**: Serves all static assets for the frontend application, including `index.html`, JavaScript files, CSS, and plugin assets.
--   **MCP Tool Provider**: Exposes a suite of MCP tools for filesystem operations (e.g., `read_text_file`, `write_file`, `list_directory`). These tools are the primary way other agents interact with the workspace filesystem.
--   **Security Layer**: Enforces a strict path-whitelisting policy (`allowedDirectories`) to prevent unauthorized file access and block path traversal attacks. Any request for a path outside the defined workspace is rejected.
--   **Plugin Discovery**: On startup, the server recursively scans all enabled repositories for `IDE-plugins/*/config.json` manifests. It aggregates these configurations into a single plugin catalog that is then sent to the frontend.
--   **Blob Storage Endpoint**: Manages file uploads via a `POST` endpoint at `/blobs/:agentId`. It calculates a content-based hash for each file, stores it in the `blobs/` directory, and returns a JSON object with the file's metadata (`id`, `filename`, `localPath`, `downloadUrl`, `mime`, `size`).
+- **Containerized UI + FS MCP server**: Runs `filesystem-http-server.mjs` (Node 20-alpine) serving the WebSkel UI and filesystem MCP tools. Allowed roots come from `ASSISTOS_FS_ROOT`/`MCP_FS_ROOT` or CLI args.
+- **Plugin host**: Discovers `IDE-plugins/*/config.json` across enabled repos; tools are exposed to the UI grouped by `location`.
+- **Document manager**: Markdown is parsed into chapters/paragraphs with metadata and SOPLang commands.
+- **No HTTP blob endpoint in current server**: UI helpers expect `/blobs/<agent>`, but `filesystem-http-server.mjs` only exposes MCP on `/mcp` and a `/health` check.
+- **Auto-enabled deps**: Explorer manifest enables `soplang` and `multimedia` (same repo); avoid enabling duplicates manually.
+- **Separate SOPLang agent**: `soplangAgent` (repo `SOPLangBuilder`) provides `soplang-tool` and `SoplangBuilder.buildFromMarkdown`; it runs in its own container sharing the workspace.
 
 ---
 
-## 4. Frontend (WebSkel SPA)
+## 2) Runtime & Routing
 
-The frontend is a Single-Page Application (SPA) located in the `explorer/` directory.
-
--   **Framework**: It is built using **WebSkel**, a lightweight, component-based framework. For more details, refer to the [WebSkel README](https://github.com/OutfinityResearch/WebSkel/blob/master/README.md).
--   **Component Structure**: UI components are defined in `explorer/webskel.json` and organized into `pages`, `components`, and `modals` within the `explorer/web-components/` directory.
--   **Presenters**: Each component is driven by a JavaScript presenter class. The presenter's constructor receives the component's `element` and an `invalidate` function. Calling `invalidate()` triggers a re-render of the component, making the UI reactive. Presenters must also implement `beforeRender()` and `afterRender()` lifecycle hooks.
--   **Plugin Integration**: The frontend is responsible for dynamically rendering plugin icons in the UI based on their specified `location` and for loading and instantiating the plugin's web component when a user interacts with it.
-
----
-
-## 5. Managing and Editing `.md` Documents
-
-A core feature of the Explorer agent is its specialized handling of Markdown (`.md`) files. Instead of treating them as plain text, Explorer parses them into a structured **Document Object Model**.
-
-### 5.1. Structural Parsing
-The primary goal is to transform static Markdown files into interactive, extensible documents. To achieve this, Explorer parses the `.md` file into a tree of **Chapters** (typically denoted by H1 or H2 headings) and **Paragraphs**. This hierarchical structure allows plugins to be highly context-aware. A plugin with `"location": ["paragraph"]` will appear on every paragraph, enabling actions on specific blocks of text.
-
-### 5.2. Data Persistence via Soplang Commands
-A key architectural concept is that **`.md` files are not just for storing human-readable text; they are also a persistence layer for structured data.** This is achieved by embedding `soplang` commands directly within the text.
-
--   **Syntax**: These commands follow a simple `@command` syntax. For example: `@command arg1 "value 1" arg2 "value 2"`.
--   **Use Case: Media Attachments**: The most common use case is for attaching media. When a user uploads an image, the following happens:
-    1.  The file is sent to the **Blob Service**, which returns a unique, content-based `blobId`.
-    2.  The plugin then uses the `documentModule` to insert a `soplang` command into the active paragraph. The command looks like this:
-        ```
-        @media_image_123 attach id "z2x...blobId...y9a" name "my-cat.png"
-        ```
-    3.  This entire line is saved as part of the `.md` file's content. It is both machine-readable and provides a hint to human readers.
--   **Parsing**: When Explorer loads a document, its parsing service (e.g., `mediaAttachmentUtils.js`) scans the text for these commands. It extracts the command and its arguments and makes them available to the frontend UI.
--   **Rendering**: The frontend uses this parsed data to render rich components. For instance, instead of displaying the raw `@media_image...` text, it will render an `<img>` tag pointing to the blob's URL.
-
-This mechanism allows the `.md` file to be a self-contained, rich document that holds both formatted text and the structured data needed for interactive features.
-
-### 5.3. Editing and State Management
-When a user or plugin modifies a document, Explorer uses its Document Object Model to make targeted changes. Whether updating a paragraph's text or adding a `soplang` command, the `documentModule` ensures that the `.md` file is rewritten correctly, preserving both the text and the embedded commands.
+- **Manifest**: `explorer/manifest.json` – `container: node:20-alpine`, `agent: node /code/filesystem-http-server.mjs`, `env: ["ASSISTOS_FS_ROOT"]`, `enable: ["soplang","multimedia"]`.
+- **Global mode**: `p-cli enable agent fileExplorer/explorer global` runs in the current workspace folder. First `p-cli start explorer <port>` also pins the router/static port.
+- **Router**: Ploinky router serves static UI and proxies MCP on the chosen port (e.g., 8080 → `/explorer/index.html`).
+- **Allowed directories**: Derived from `ASSISTOS_FS_ROOT`/`MCP_FS_ROOT` (comma-separated). If missing, falls back to `process.cwd()`. Multiple roots → first is workspace root.
+- **Containers & workspace**: Explorer and soplangAgent containers mount the same host workspace volume; each has its own MCP endpoints.
 
 ---
 
-## 6. The Plugin System
+## 3) Architecture (textual)
 
-### Discovery
--   At server startup, Explorer scans all enabled repos for `IDE-plugins/*/config.json`.
--   These manifests are merged into a single plugin catalog sent to the client.
-
-### Manifest (`config.json`)
-```json
-{
-  "component": "my-plugin-component",
-  "presenter": "MyPluginPresenter",
-  "type": "modal",
-  "location": ["chapter", "paragraph"],
-  "tooltip": "A helpful tooltip for the icon",
-  "icon": "./icon.svg"
-}
-```
-
-### Plugin Folder Layout
-```
-IDE-plugins/
-  my-plugin/
-    config.json        # Manifest (required)
-    my-plugin.js       # Presenter class
-    my-plugin.html     # HTML template
-    my-plugin.css      # Styles
-    icon.svg           # Toolbar icon
-```
+- **Browser (WebSkel UI)** → **Ploinky Router** (static/proxy) → **Explorer container** (MCP filesystem tools) → **Workspace FS (allowed roots)**.
+- **MCP clients** (UI/other agents) call Explorer MCP directly for filesystem tools.
+- **soplangAgent container** (node:20-alpine, `soplang-tool`) receives MCP calls separately; it reads files directly from the mounted workspace.
+- Both containers run independently; there is no hop Explorer → soplangAgent.
 
 ---
 
-## 7. Example: "Uppercase Paragraph" Plugin
+## 4) Document Model & Editing
 
-This example demonstrates the correct structure of a WebSkel presenter, including the mandatory `beforeRender` and `afterRender` lifecycle methods.
-
-1.  **Create Folder**: `IDE-plugins/uppercase/`
-2.  **`config.json`**:
-    ```json
-    {
-      "component": "uppercase-plugin",
-      "presenter": "UppercasePlugin",
-      "type": "modal",
-      "location": ["paragraph"],
-      "tooltip": "Uppercase paragraph",
-      "icon": "./icon.svg"
-    }
-    ```
-3.  **`uppercase-plugin.html`**:
-    ```html
-    <div class="modal-header">
-      <div>Uppercase Paragraph</div>
-      <div class="close" data-local-action="closeModal">&times;</div>
-    </div>
-    <div class="modal-body">
-      <p>This will convert the paragraph with text: "<strong>${this.paragraph.text}</strong>" to uppercase.</p>
-      <button class="general-button" data-local-action="apply">Apply</button>
-    </div>
-    ```
-4.  **`uppercase-plugin.js`**:
-    ```javascript
-    import { getContextualElement } from "../utils/pluginUtils.js";
-    const documentModule = assistOS.loadModule("document");
-
-    export class UppercasePlugin {
-      constructor(element, invalidate) {
-        this.element = element;
-        this.invalidate = invalidate;
-        // The invalidate call is crucial and should be done in the constructor.
-        this.invalidate();
-      }
-
-      beforeRender() {
-        // This method is called before the component's HTML is rendered.
-        // We use it to get the contextual data (chapter and paragraph).
-        const { chapter, paragraph } = getContextualElement(this.element);
-        this.chapter = chapter;
-        this.paragraph = paragraph;
-      }
-
-      afterRender() {
-        // This method is called after the component's HTML has been rendered and inserted into the DOM.
-        // It's the ideal place to add event listeners.
-        const button = this.element.querySelector('[data-local-action="apply"]');
-        button.addEventListener("click", this.apply.bind(this));
-      }
-
-      async apply() {
-        const text = this.paragraph?.text || "";
-        await documentModule.updateParagraphText(this.chapter.id, this.paragraph.id, text.toUpperCase());
-        assistOS.UI.showToast("Paragraph updated successfully!", "success");
-        this.closeModal();
-      }
-
-      closeModal() {
-        assistOS.UI.closeModal(this.element);
-      }
-    }
-    ```
-5.  **Add `icon.svg`** and restart Explorer to see the plugin.
+- **View/Edit modes**: Any file can be opened; Markdown gets structured document features, other text/code files use the general editor (with syntax highlighting, no document DOM).
+- **Hydration**: `DocumentStore.hydrateDocumentModel` parses Markdown plus comment markers into a hierarchy (document → chapters → paragraphs).
+  - Example comment markers:
+    - `<!--{"achiles-ide-document": {"id": "guide", "title": "My Guide"}}-->`
+    - `<!--{"achiles-ide-chapter": {"title": "Intro"}}-->`
+    - `<!--{"achiles-ide-paragraph": {"text": "Hello", "commands": "@media_image_123 attach id \"blob-id\" name \"hero.png\""}}-->`
+- **Persistence via SOPLang commands**: Commands are embedded inline and preserved on save.
+  - Example: `@media_image_123 attach id "blob-id" name "hero.png"` stays in the Markdown; UI renders the image using parsed data.
+- **Document info**: Title and Info Text are stored in metadata (e.g., Title “Release Notes”, Info “Changelog for v1.2”).
+- **Table of Contents**: Built from chapters; selecting an entry scrolls to that chapter.
+- **Comments**: Stored per document/chapter/paragraph (e.g., “Clarify API version” attached to a paragraph).
+- **References**: Stored in `references` array (e.g., title “RFC 9110”, URL set in references table).
+- **Snapshots/Tasks/Variables**: Version snapshots, to-dos, and variables (e.g., `releaseVersion=1.2.0`) are part of the model; dialogs manage them.
+- **Other files**: Open `config/app.json` or `src/main.js` with the general editor; no chapter/paragraph structure, only text + syntax highlight.
 
 ---
 
-## 8. MCP Tools Exposed by Explorer
+## 5) SOPLang Usage in Documents
 
-The Explorer agent exposes a secure API for file manipulation via MCP tools. Other agents should use these tools instead of attempting direct filesystem access.
-
--   **Common Tools**: `read_text_file`, `write_file`, `list_directory`, `stat`, `make_directory`, `delete_path`. (Check `filesystem-http-server.mjs` for the exact exported names).
--   **Security**: All tools are sandboxed and enforce the `allowedDirectories` configuration, ensuring that operations are confined to the intended workspace.
-
----
-
-## 9. Development Tips
-
--   **Restart on Change**: You must restart the Explorer agent after adding, removing, or modifying a plugin's `config.json` to force the server to rebuild its plugin catalog.
--   **Use Blob IDs**: Store blob IDs, not full URLs, in document commands or plugin state. URLs can change and should be constructed on-demand using helpers like `blobUrl.buildBlobUrl`.
--   **Use the Document Module**: When modifying document content from a plugin, always use the `assistOS.loadModule("document")` functions to ensure data consistency and proper UI updates.
--   **Media Formats**: For plugins involving media processing (e.g., with ffmpeg), prefer standard formats like PNG, JPG, MP4, and MP3. SVG is often not supported in these pipelines.
+- **Embed code**: Use fenced ` ```soplang ` blocks for scripts.
+- **Achilles comments**: `achiles-ide-document/chapter/paragraph` markers map Markdown to the model and keep commands in sync.
+- **Variables & media**: Commands like `@set doc_owner "alice@company.com"` or `@media_image_123 attach id "abcd" name "diagram.png"` live in the Markdown and are parsed on hydration.
+- **Execution**: UI actions can run SOPLang blocks via soplangAgent; outputs/variable updates flow back into the model. Reload to re-hydrate after edits.
+- **Flow fit**: Documents + SOPLang commands define structure; the build pipeline (below) persists them via soplangAgent.
 
 ---
 
-## 10. Visual Cheatsheet (Repo Layout)
+## 6) Plugin System
 
-```
-.../fileExplorer/explorer/
-├─ filesystem-http-server.mjs   # Backend: MCP, Blob Service, Plugin Discovery
-├─ index.html / main.js         # SPA entry point
-├─ webskel.json                 # Defines the core UI components
-├─ web-components/              # Implementation of core UI components
-├─ IDE-plugins/                 # Location for plugins (discovered recursively)
-│   └─ <plugin>/config.json
-├─ services/                    # Frontend services, including document parsing
-└─ utils/                       # Shared utilities for the frontend
-```
+- **Discovery**: MCP tool `collect_ide_plugins` calls `aggregateIdePlugins`, scanning enabled repos for `IDE-plugins/*/config.json` on each invocation (e.g., UI load). Results are grouped by `location`.
+- **Manifest example**:
+  ```json
+  {
+    "component": "video-creator",
+    "presenter": "VideoCreator",
+    "type": "modal",
+    "location": ["document"],
+    "tooltip": "Create a video from a script",
+    "icon": "./assets/icons/video.svg"
+  }
+  ```
+- **Example plugin (Uppercase paragraph)**: Folder `IDE-plugins/uppercase/` with `config.json`, `uppercase-plugin.html`, and presenter implementing `beforeRender/afterRender`, calling `documentModule.updateParagraphText` then showing a toast and closing the modal.
+- **UI-only scaffold**: Plugins can be simple UI bundles with `manifest.json` and static assets (see “Plugins guide” in the site for full steps).
+
+---
+
+## 7) MCP Tools (Explorer)
+
+Key tools exposed by `filesystem-http-server.mjs` (all enforce allowed directories): `read_text_file`, `read_media_file`, `read_multiple_files`, `write_file`, `write_binary_file`, `edit_file`, `create_directory`, `delete_file`, `delete_directory`, `list_directory`, `list_directory_with_sizes`, `list_directory_detailed`, `directory_tree`, `move_file`, `copy_file`, `search_files`, `get_file_info`, `collect_ide_plugins`, `list_allowed_directories`.
+
+Endpoints: `/mcp` (MCP), `/health`. No `/blobs` HTTP upload/download in current code.
+
+---
+
+## 8) SOPLang Build (Markdown → Documents)
+
+`SoplangBuilder.buildFromMarkdown` runs inside **soplangAgent** (repo `SOPLangBuilder`).
+
+**Setup (from workspace root):**
+- `p-cli enable repo SOPLangBuilder`
+- `p-cli enable agent SOPLangBuilder/soplangAgent global`
+- Start the agent (e.g., `p-cli start soplangAgent` if not running).
+
+**Invoke:**
+- MCP tool: `soplang-tool` (`soplangAgent/mcp-config.json`).
+- Payload: `pluginName: "SoplangBuilder"`, `methodName: "buildFromMarkdown"`, optional `params: []`.
+- Logs: `SOPLangBuilder/last-tool.log`; storage paths set in `soplangAgent/soplang-tool.sh` (`/persistoStorage`, `/persistoLogs`, `/persistoAudit`).
+
+**Workflow (code-level):**
+1. `pickRoot()` selects workspace root (`SOPLANG_WORKSPACE_ROOT` or cwd parents).
+2. `walkMarkdown(root)` recursively finds `.md`, skipping common build/dev dirs.
+3. `parseDocsFromMarkdown(content, filePath)` reads `achiles-ide-*` comments to build doc/chapter/paragraph templates.
+4. For each doc: fetch/create via `Documents` plugin; clear chapters/paragraphs if existing; update metadata; `applyTemplate` to sync content.
+5. `workspace.forceSave()` then `workspace.buildAll()` finalize persistence. Result includes counts, warnings, duration, errors.
+
+---
+
+## 9) Development & Setup
+
+- **Prereqs**: Node 20+, npm, active Ploinky workspace.
+- **Global run**: `p-cli enable repo fileExplorer` then `p-cli enable agent fileExplorer/explorer global`; start with `p-cli start explorer 8080` (router/UI on that port).
+- **Filesystem root**: Set `ASSISTOS_FS_ROOT` (or `MCP_FS_ROOT`) to the workspace path(s); fallback is cwd. First root is workspace root.
+- **Auto-enabled agents**: `soplang`, `multimedia` (from Explorer manifest).
+- **Dependencies**: `npm install` at repo root (and `explorer/` if needed).
+- **Hot reload**: UI refresh picks up most changes; plugin `config.json` or new plugins require Explorer restart to rescan. SOPLang comment edits are re-hydrated on reload; rerun `buildFromMarkdown` to persist into the SOPLang store.
+- **Repo layout (Explorer)**:
+  ```
+  explorer/
+  ├─ filesystem-http-server.mjs   # MCP, plugin discovery
+  ├─ index.html / main.js         # SPA entry
+  ├─ webskel.json                 # UI components
+  ├─ web-components/              # UI implementations
+  ├─ IDE-plugins/                 # Plugin location
+  ├─ services/                    # Document parsing/services
+  └─ utils/                       # Shared utilities
+  ```
+
+---
+
+## 10) SOPLang Agent (overview)
+
+- **Manifest**: `soplangAgent/manifest.json` – `container: node:20-alpine`, `postinstall: apk add ffmpeg`.
+- **MCP tool**: `soplang-tool` (`soplangAgent/mcp-config.json`) with `pluginName`, `methodName`, `params`.
+- **Plugins loaded**: SOPLang core plugins plus `plugins/SoplangBuilder.js` if present; log captured in `last-tool.log`.
+- **Workspace access**: Reads markdown directly from mounted workspace; not dependent on Explorer backend.
+
+---
+
+## 11) General Notes
+
+- Blob uploads: UI utilities target `/blobs/<agent>`, but the current Explorer server does not implement this HTTP endpoint. Plan workflows accordingly (or add server support if needed).
+- MCP isolation: Call Explorer and soplangAgent independently; do not route soplang-tool through Explorer.
+- View vs. edit: All files support both; structured features apply only to Markdown. Syntax highlighting is presentation only for code/text files.

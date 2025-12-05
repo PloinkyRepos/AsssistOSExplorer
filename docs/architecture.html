@@ -24,7 +24,7 @@
                         <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
-                        <li><a href="build.html">Build</a></li>
+                        <li><a href="build.html">SOPLang Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
                     </ul>
@@ -47,9 +47,89 @@
                 <div class="doc-section" id="runtime">
                     <h1>Architecture</h1>
                     <p>This section provides a detailed look at the technical architecture of the Explorer agent, from the containerized runtime to the frontend application.</p>
+                    <p>The backend also acts as the MCP tools provider: it exposes filesystem-safe operations (read/write/list/move/copy, tree, media read, allowed roots) under the Explorer agent, enforcing whitelisted roots and path resolution. Optional integrations (e.g. SOPLang plugins) consume these tools rather than touching the filesystem directly.</p>
+                    <figure class="architecture-diagram" aria-label="Explorer architecture diagram">
+                        <svg viewBox="0 0 1320 460" role="img" aria-labelledby="architecture-diagram-title">
+                            <title id="architecture-diagram-title">Explorer architecture</title>
+                            <style>
+                                .node { fill: #0f172a; stroke: #38bdf8; stroke-width: 2; rx: 8; ry: 8; }
+                                .label { fill: #e2e8f0; font-size: 14px; font-family: Arial, sans-serif; }
+                                .muted { fill: #94a3b8; font-size: 12px; }
+                                .arrow { stroke: #38bdf8; stroke-width: 2; marker-end: url(#arrowhead); fill: none; }
+                                .dashed { stroke-dasharray: 6 4; }
+                            </style>
+                            <defs>
+                                <marker id="arrowhead" markerWidth="10" markerHeight="7" refX="10" refY="3.5" orient="auto">
+                                    <polygon points="0 0, 10 3.5, 0 7" fill="#38bdf8"></polygon>
+                                </marker>
+                            </defs>
+                            <rect x="40" y="50" width="1240" height="360" fill="none" stroke="#334155" stroke-width="1" stroke-dasharray="10 6"></rect>
+                            <text class="muted" x="60" y="46">Shared host workspace (mounted into containers)</text>
+
+                            <rect class="node" x="60" y="90" width="200" height="100"></rect>
+                            <text class="label" x="160" y="120" text-anchor="middle">Browser</text>
+                            <text class="muted" x="160" y="142" text-anchor="middle">WebSkel UI</text>
+
+                            <rect class="node" x="320" y="90" width="230" height="100"></rect>
+                            <text class="label" x="435" y="120" text-anchor="middle">Ploinky Router</text>
+                            <text class="muted" x="435" y="142" text-anchor="middle">
+                                <tspan x="435" dy="0">Static + proxy</tspan>
+                                <tspan x="435" dy="14">(port from start)</tspan>
+                            </text>
+
+                            <rect x="600" y="80" width="260" height="120" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="8 6"></rect>
+                            <text class="muted" x="730" y="74" text-anchor="middle">Container (Podman/Docker)</text>
+                            <rect class="node" x="610" y="90" width="240" height="100"></rect>
+                            <text class="label" x="730" y="136" text-anchor="middle">Explorer Agent</text>
+                            <text class="muted" x="730" y="158" text-anchor="middle">
+                                <tspan x="730" dy="0">Container: node:20-alpine</tspan>
+                                <tspan x="730" dy="14">agent: filesystem-http-server.mjs</tspan>
+                            </text>
+
+                            <rect class="node" x="920" y="90" width="220" height="100"></rect>
+                            <text class="label" x="1030" y="136" text-anchor="middle">Workspace FS</text>
+                            <text class="muted" x="1030" y="158" text-anchor="middle">
+                                <tspan x="1030" dy="0">Allowed roots</tspan>
+                                <tspan x="1030" dy="14">(ASSISTOS_FS_ROOT)</tspan>
+                            </text>
+
+                            <rect class="node" x="610" y="290" width="240" height="100"></rect>
+                            <text class="label" x="730" y="336" text-anchor="middle">MCP Clients</text>
+                            <text class="muted" x="730" y="358" text-anchor="middle">Agents/Explorer UI</text>
+
+                            <rect x="900" y="260" width="260" height="120" fill="none" stroke="#38bdf8" stroke-width="1.5" stroke-dasharray="8 6"></rect>
+                            <text class="muted" x="1030" y="254" text-anchor="middle">Container (Podman/Docker)</text>
+                            <rect class="node" x="910" y="270" width="240" height="100"></rect>
+                            <text class="label" x="1030" y="316" text-anchor="middle">soplangAgent</text>
+                            <text class="muted" x="1030" y="338" text-anchor="middle">
+                                <tspan x="1030" dy="0">Container: node:20-alpine</tspan>
+                                <tspan x="1030" dy="14">soplang-tool (SoplangBuilder)</tspan>
+                            </text>
+
+                            <text class="muted" x="300" y="74">HTTP (assets/UI)</text>
+                            <line class="arrow" x1="260" y1="170" x2="320" y2="170"></line>
+
+                            <text class="muted" x="580" y="74">Static/proxy</text>
+                            <line class="arrow" x1="550" y1="170" x2="610" y2="170"></line>
+
+                            <text class="muted" x="900" y="74">Volume mount (allowed roots)</text>
+                            <line class="arrow" x1="850" y1="170" x2="920" y2="170"></line>
+
+                            <text class="muted" x="620" y="266">MCP → Explorer FS tools</text>
+                            <line class="arrow dashed" x1="730" y1="290" x2="730" y2="190"></line>
+
+                            <text class="muted" x="925" y="266">MCP → soplang-tool</text>
+                            <line class="arrow dashed" x1="730" y1="290" x2="910" y2="290"></line>
+
+                            <text class="muted" x="1040" y="236">FS read (container)</text>
+                            <line class="arrow" x1="1030" y1="270" x2="1030" y2="190"></line>
+                        </svg>
+                    </figure>
+                    <p class="muted">Note: Current <code>filesystem-http-server.mjs</code> only exposes MCP over <code>/mcp</code> (plus <code>/health</code>); it does not implement the previously documented <code>/blobs</code> upload/download HTTP endpoints.</p>
 
                     <h2>Runtime and Routing</h2>
-                    <p>The Explorer agent's container configuration is defined in <code>manifest.json</code>. This file specifies how the container runs, including mounting the workspace and the agent library. The UI is served directly by Explorer on the configured host port (commonly <code>8080</code>); point your browser to that port to load the app.</p>
+                    <p>The Explorer agent's container configuration is defined in <code>manifest.json</code>. This file specifies how the container runs, including mounting the workspace and the agent library. When started with Ploinky, the router exposes Explorer on the chosen port (e.g. <code>8080</code> after <code>p-cli start explorer 8080</code>), serving static assets and proxying API requests to the Explorer container.</p>
+                    <p><strong>Note:</strong> <code>soplangAgent</code> is a separate container (repo <code>SOPLangBuilder</code>) that receives MCP requests (e.g. <code>soplang-tool</code> with <code>SoplangBuilder.buildFromMarkdown</code>) from clients such as Explorer UI or other agents. It does not rely on the Explorer backend for data access; it runs in the same workspace and can read files directly according to its own configuration.</p>
                 </div>
 
                 <div class="doc-section" id="backend">
@@ -60,13 +140,13 @@
                         <li><strong>MCP Tool Provider:</strong> Exposes a suite of MCP tools for secure filesystem operations. This is the primary interface for other agents to interact with the workspace.</li>
                         <li><strong>Security Layer:</strong> Enforces a strict path-whitelisting policy defined by <code>allowedDirectories</code>. This prevents unauthorized file access and path traversal attacks by validating all incoming requests. The <code>resolvePathsInArgs</code> function is a key part of this security model.</li>
                         <li><strong>Plugin Discovery:</strong> On startup, the server's <code>aggregateIdePlugins</code> function recursively scans all enabled repositories for <code>IDE-plugins/*/config.json</code> manifests. It aggregates these configurations into a single plugin catalog that is then sent to the frontend.</li>
-                        <li><strong>Blob Storage:</strong> Manages file uploads via a <code>/blobs/:agentId</code> endpoint. It uses a content-addressable storage system, saving files by their hash to avoid duplication.</li>
+                        <li><strong>Blob uploads:</strong> Not implemented in <code>filesystem-http-server.mjs</code>; UI utilities expect <code>/blobs/&lt;agent&gt;</code> but the endpoint is absent in current server code.</li>
                     </ul>
                 </div>
 
                 <div class="doc-section" id="frontend">
                     <h2>Frontend (WebSkel SPA)</h2>
-                    <p>The frontend is a Single-Page Application (SPA) located in the <code>explorer/</code> directory, built using <strong>WebSkel</strong>, a lightweight, component-based framework for building reactive web applications.</p>
+                    <p>The frontend is a Single-Page Application (SPA) located in the <code>explorer/</code> directory, built using <strong>WebSkel</strong>, a lightweight, component-based framework for building reactive web applications. More on WebSkel <a href="https://github.com/OutfinityResearch/WebSkel/blob/master/README.md" target="_blank" rel="noopener noreferrer">here</a>.</p>
                     
                     <p>The Explorer's user interface is beautifully structured around a clear separation of concerns, typically comprising two main areas:</p>
                     <ol>

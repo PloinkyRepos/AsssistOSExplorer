@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Build Workspace - Explorer Agent</title>
+    <title>SOPLang Build - Explorer Agent</title>
     <link rel="stylesheet" href="style.css">
 </head>
 <body>
@@ -24,7 +24,7 @@
                         <li><a href="documents.html">Document Model &amp; Editing</a></li>
                         <li><a href="plugins.html">Plugins</a></li>
                         <li><a href="mcp-tools.html">MCP Tools</a></li>
-                        <li><a href="build.html" class="active">Build</a></li>
+                        <li><a href="build.html" class="active">SOPLang Build</a></li>
                         <li><a href="screenshots.html">Screenshots</a></li>
                         <li><a href="development.html">Development</a></li>
                     </ul>
@@ -36,34 +36,17 @@
     <main>
         <div class="doc-layout">
             <aside class="sidebar">
-                <h3>Build Workflow</h3>
+                <h3>SOPLang Build</h3>
                 <ul>
                     <li><a href="#overview">Overview</a></li>
-                    <li><a href="#setup-run">Prerequisites & run</a></li>
                     <li><a href="#build-from-markdown">Building from Markdown</a></li>
-                    <li><a href="#hot-reload">Hot reload & restarts</a></li>
                     <li><a href="#soplang-agent-interaction">SOPLang Agent Interaction</a></li>
                 </ul>
             </aside>
             <div class="content-wrapper">
                 <div class="doc-section" id="overview">
-                    <h1>Building the Workspace</h1>
-                    <p>The Achilles IDE workspace can be built to process and synchronize content from various sources, especially Markdown documents, into the IDE's internal document store. This process ensures that your structured documentation, including embedded SOPLang commands and metadata, is correctly represented and actionable within the IDE.</p>
-                </div>
-
-                <div class="doc-section" id="setup-run">
-                    <h2>Prerequisites & local run</h2>
-                    <ul>
-                        <li><strong>Node.js 20+</strong> and <strong>npm</strong> installed; active Ploinky workspace.</li>
-                        <li><strong>Enable repo & agent (global):</strong>
-<pre><code>p-cli enable repo fileExplorer
-p-cli enable agent fileExplorer/explorer global
-</code></pre>
-                        </li>
-                        <li><strong>Start Explorer (global):</strong> run <code>p-cli start explorer 8080</code> (or your port). UI: <code>http://127.0.0.1:8080/explorer/index.html</code>.</li>
-                        <li><strong>Dependencies (optional local):</strong> <code>npm install</code> at repo root (and in <code>explorer/</code> if needed).</li>
-                        <li>Use only Explorer and <code>soplangAgent</code> (for script execution) in the flows described here.</li>
-                    </ul>
+                    <h1>SOPLang Build (Markdown → Documents)</h1>
+                    <p>Use <code>SoplangBuilder.buildFromMarkdown</code> (served by <code>soplangAgent</code>) to scan Markdown files and synchronize structured documents into the SOPLang workspace. Explorer remains the UI; the build pipeline itself runs in the separate soplangAgent container.</p>
                 </div>
 
                 <div class="doc-section" id="build-from-markdown">
@@ -102,23 +85,16 @@ This paragraph might have embedded commands.
                     </ol>
                 </div>
 
-                <div class="doc-section" id="hot-reload">
-                    <h2>Hot reload & restarts</h2>
-                    <ul>
-                        <li>Static assets are served by the Explorer backend; most UI tweaks appear after a browser refresh.</li>
-                        <li>Changes to plugin <code>config.json</code> or newly added plugins require restarting the Explorer service so discovery can re-run.</li>
-                        <li>SOPLang comment changes in Markdown are picked up on reload/hydration; re-run <code>buildFromMarkdown</code> if you want to persist updated structure back to the store.</li>
-                    </ul>
-                </div>
-
                 <div class="doc-section" id="soplang-agent-interaction">
                     <h2>SOPLang Agent Interaction</h2>
-                    <p>The <code>buildFromMarkdown</code> function is typically invoked through the SOPLang Agent via the <code>soplang-tool.sh</code> script. This interaction model allows the IDE to leverage SOPLang's powerful scripting capabilities for complex build and automation tasks.</p>
-                    <p>You can execute this build process by sending an MCP request to the SOPLang Agent, specifying the <code>SoplangBuilder</code> plugin and the <code>buildFromMarkdown</code> method, potentially through a CLI command or an IDE action.</p>
-                    <pre><code># Example conceptual command to trigger the build
-# (Actual invocation might be abstracted by the IDE UI)
-ploinky soplang-tool --plugin SoplangBuilder --method buildFromMarkdown</code></pre>
-                    <p>The output of the build process, including any warnings or errors, will be returned, allowing you to monitor the workspace synchronization.</p>
+                    <p>The <code>buildFromMarkdown</code> function is invoked through the <code>soplangAgent</code> (repo <code>SOPLangBuilder</code>) using its MCP tool <code>soplang-tool</code> defined in <code>soplangAgent/mcp-config.json</code>. Payload fields: <code>pluginName</code> (string), <code>methodName</code> (string), <code>params</code> (array, optional).</p>
+                    <p>Setup steps from workspace root:</p>
+                    <ol>
+                        <li><code>p-cli enable repo SOPLangBuilder</code></li>
+                        <li><code>p-cli enable agent SOPLangBuilder/soplangAgent global</code></li>
+                        <li>Start the agent per Ploinky CLI (e.g., <code>p-cli start soplangAgent</code> if not already running).</li>
+                        <li>Call MCP tool <code>soplang-tool</code> with <code>pluginName: "SoplangBuilder"</code> and <code>methodName: "buildFromMarkdown"</code> (add <code>params</code> array if needed). Results and plugin console output are written to <code>SOPLangBuilder/last-tool.log</code>; persistence/log/audit paths are set in <code>soplangAgent/soplang-tool.sh</code>.</li>
+                    </ol>
                 </div>
             </div>
         </div>
